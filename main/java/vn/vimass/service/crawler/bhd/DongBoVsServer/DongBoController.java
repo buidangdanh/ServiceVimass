@@ -127,6 +127,7 @@ public class DongBoController {
                     hashFPLocal.put(ar.port, ar.idDonVi);
                 }
             }
+            Log.logServices("test" + listFPLocal.toString());
             capNhatPort(listFPLocal);
             //lay thiet bi van tay tu sv
             listFPSV = layThietBiVanTay();
