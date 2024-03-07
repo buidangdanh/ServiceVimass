@@ -29,6 +29,7 @@ import static vn.vimass.service.BackUp.BackUpControllerDataBaseVer2.*;
 import static vn.vimass.service.BackUp.BackUpFunCVer2.*;
 import static vn.vimass.service.BackUp.BackUpFunction.May1;
 import static vn.vimass.service.BackUp.BackUpFunction.StatusResponse;
+import static vn.vimass.service.BackUp.FingerPrint.FPDataBase.*;
 import static vn.vimass.service.BackUp.FingerPrint.FPFunC.*;
 import static vn.vimass.service.BackUp.FingerPrint.FPFunC.capNhatIdFP;
 import static vn.vimass.service.CallService.CallService.PostREST;
@@ -112,6 +113,7 @@ public class DongBoController {
     }
 
     private static void funcFP(ArrayList<ObjFP> listFP) {
+        statusFP = false;
         HashMap<String, String> hashFPLocal = new HashMap<>();
         HashMap<String, String> hashFPLocal2 = new HashMap<>();
         ArrayList<ObjFP> listFPLocal = new ArrayList<>();
@@ -127,7 +129,6 @@ public class DongBoController {
                     hashFPLocal.put(ar.port, ar.idDonVi);
                 }
             }
-            Log.logServices("test" + listFPLocal.toString());
             capNhatPort(listFPLocal);
             //lay thiet bi van tay tu sv
             listFPSV = layThietBiVanTay();
@@ -142,6 +143,11 @@ public class DongBoController {
                                 objFP.idDonVi = idMoiNhat;
                             }
                             capNhatIdFP(idMoiNhat, hashFPLocal);
+                            try {
+                                Thread.sleep(1000);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
                             capNhatLenServer(objFP);
                         }
                     }else if(objFP.type==2){
@@ -151,15 +157,23 @@ public class DongBoController {
                         for (ObjFP ar : listFPLocal) {
                             if (ar.idDonVi.equals(objFP.idDonVi)) {
                                 xoaFpID(ar.port);
+                                NhayDen(ar.port);
                             }
                         }
 
                     }
                 }
             }
-
+/*            new Thread(() -> {
+                try {
+                    Thread.sleep(1000); // Pause execution in this thread for 1000ms
+                } catch (InterruptedException e) {
+                    e.printStackTrace(); // Handle the interrupted exception
+                }
+                statusFP = true; // Set the statusFP flag to true after the sleep
+            }).start(); // Start the thread*/
         } catch (Exception ex) {
-            Log.logServices("funcVPass Exception" + ex.getMessage());
+            Log.logServices("funcFP Exception" + ex.getMessage());
         }
     }
 

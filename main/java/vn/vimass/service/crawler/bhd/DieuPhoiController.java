@@ -152,7 +152,7 @@ public class DieuPhoiController {
                 res = DieuPhoiFunc.getListVpass();
                 break;
             case 126:// lay danh sach thiet bị vpass
-                res = FPRoutes.trangThaiFP();
+                res = FPRoutes.trangThaiFP(data);
                 break;
             case 127:// lay danh sach thiet bị vpass
                 res = FPRoutes.themSuaXoaFP(funcId,time,data);

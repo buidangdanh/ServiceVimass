@@ -1,10 +1,15 @@
 package vn.vimass.service.BackUp.FingerPrint;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import vn.vimass.service.BackUp.FingerPrint.Obj.FingerData;
 import vn.vimass.service.BackUp.FingerPrint.Obj.FingerInfo;
+import vn.vimass.service.BackUp.FingerPrint.Obj.ObjFP;
+import vn.vimass.service.BackUp.FingerPrint.Obj.ObjThemSuaXoaRQ;
 import vn.vimass.service.log.Log;
-import vn.vimass.service.table.object.ObjectInfoVid;
+import vn.vimass.service.table.NhomThietBiDiem.entity.ListDiem;
+import vn.vimass.service.table.NhomThietBiDiem.entity.ObjVpass;
+import vn.vimass.service.table.object.ObjectFPRequest;
 import vn.vimass.service.utils.DbUtil;
 
 import java.sql.*;
@@ -135,10 +140,11 @@ public class FPDataBase {
         }
         return arr;
     }
-    public static FingerData getDataFingerFromVid(ObjectInfoVid oTKR) {
+    public static ArrayList<FingerData> getDataFingerFromVid(ObjectFPRequest oTKR) {
+        ArrayList<FingerData> kqF = new ArrayList<>();
         FingerData obj = new FingerData();
         try{
-            String strQuery = "SELECT * FROM ObjectInfoVid WHERE idVid = ? AND personName = ? ";
+            String strQuery = "SELECT * FROM info_vid WHERE idVid = ? AND personName = ? ";
             Connection connect = DbUtil.getConnect();
             PreparedStatement pstmt = connect.prepareStatement(strQuery);
             pstmt.setString(1, oTKR.idVid);
@@ -146,13 +152,294 @@ public class FPDataBase {
             ResultSet resultSet = pstmt.executeQuery();
             if (resultSet.next()) { // Check if at least one record exists
                 if(resultSet.getString("fingerData")!=null&&!resultSet.getString("fingerData").equals("")){
-                    obj = new Gson().fromJson(resultSet.getString("fingerData"),FingerData.class);
+                    kqF = new Gson().fromJson(resultSet.getString("fingerData"), new TypeToken<ArrayList<FingerData>>() {
+                    }.getType());
                 }
             }
             Log.logServices("getDataFingerFromVid!" + pstmt);
         }catch (Exception ex){
             Log.logServices("getDataFingerFromVid Exception" +ex.getMessage());
         }
-        return obj;
+        return kqF;
+    }
+    public static ArrayList<ObjFP> getThietBiFP() {
+        ArrayList<ObjFP> arr = new ArrayList<>();
+        try {
+            String strQuery = "SELECT * FROM thietbivantay";
+            Connection connect = DbUtil.getConnect();
+            PreparedStatement pstmt = connect.prepareStatement(strQuery);
+            ResultSet resultSet = pstmt.executeQuery();
+            while (resultSet.next()) {
+                ObjFP item = new ObjFP();
+                item.id = resultSet.getString("id");
+                item.mcID = resultSet.getString("mcID");
+                item.idDonVi = resultSet.getString("idDonVi");
+                item.nameF = resultSet.getString("nameF");
+                item.totalF = resultSet.getInt("totalF");
+                item.currentF = resultSet.getInt("currentF");
+                item.timeTao = resultSet.getLong("timeTao");
+                item.timeSua = resultSet.getLong("timeSua");
+                item.type = resultSet.getInt("type");
+                item.listDiem = new Gson().fromJson(resultSet.getString("listDiem"), new TypeToken<ArrayList<ListDiem>>() {
+                }.getType());
+                item.deviceV = new Gson().fromJson(resultSet.getString("deviceV"), ObjVpass.class);
+                item.port = resultSet.getString("port");
+                arr.add(item);
+            }
+
+            Log.logServices("getThietBiFP!" + pstmt);
+
+        } catch (Exception Ex) {
+            Log.logServices("getThietBiFP Exception!" + Ex.getMessage());
+        }
+        return arr;
+    }
+
+    public static boolean themMoiThietBiVanTayDB(ObjFP objFP) {
+        Connection connect = null;
+        PreparedStatement pstmt = null;
+        boolean isSuccess = false;
+        try {
+            String strQuery = "INSERT INTO thietbivantay (id, mcID, idDonVi, nameF, totalF, currentF, timeTao, timeSua, type, listDiem, deviceV) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            connect = DbUtil.getConnect();
+            pstmt = connect.prepareStatement(strQuery);
+
+            pstmt.setString(1, objFP.id);
+            pstmt.setString(2, objFP.mcID);
+            pstmt.setString(3, objFP.idDonVi);
+            pstmt.setString(4, objFP.nameF);
+            pstmt.setInt(5, objFP.totalF);
+            pstmt.setInt(6, objFP.currentF);
+            pstmt.setLong(7, objFP.timeTao);
+            pstmt.setLong(8, objFP.timeSua);
+            pstmt.setInt(9, objFP.type); // Chuyển ArrayList<ListDiem> thành JSON string
+            pstmt.setString(10, objFP.listDiem.toString());
+            pstmt.setString(11, objFP.deviceV.toString());
+
+            // Thực thi câu lệnh
+            int affectedRows = pstmt.executeUpdate();
+
+            // Kiểm tra xem có dòng nào được thêm không
+            if (affectedRows > 0) {
+                isSuccess = true;
+            }
+
+            Log.logServices("themMoiThietBiVPass: Đã thêm mới thiết bị có ID = " + objFP.id);
+        } catch (Exception Ex) {
+            Log.logServices("themMoiThietBiVPass Exception: " + Ex.getMessage());
+        } finally {
+            // Đóng các tài nguyên
+            try {
+                if (pstmt != null) pstmt.close();
+                if (connect != null) connect.close();
+            } catch (SQLException ex) {
+                Log.logServices("themMoiThietBiVPass SQLException: " + ex.getMessage());
+            }
+        }
+        return isSuccess;
+    }
+    public static boolean capNhatThietBiVanTayDB(ObjFP objFP) {
+        Connection connect = null;
+        PreparedStatement pstmt = null;
+        boolean isSuccess = false;
+        try {
+            String strQuery = "UPDATE thietbivantay SET mcID = ?, idDonVi = ?, nameF = ?, totalF = ?, currentF = ?, timeTao = ?, timeSua = ?, type = ?, listDiem = ?, deviceV = ? WHERE id = ?";
+            connect = DbUtil.getConnect();
+            pstmt = connect.prepareStatement(strQuery);
+
+            // Thiết lập giá trị cho các tham số từ đối tượng ObjVpass
+            pstmt.setString(1, objFP.mcID);
+            pstmt.setString(2, objFP.idDonVi);
+            pstmt.setString(3, objFP.nameF);
+            pstmt.setInt(4, objFP.totalF);
+            pstmt.setInt(5, objFP.currentF);
+            pstmt.setLong(6, objFP.timeTao);
+            pstmt.setLong(7, objFP.timeSua);
+            pstmt.setInt(8, objFP.type); // Chuyển ArrayList<ListDiem> thành JSON string
+            pstmt.setString(9, objFP.listDiem.toString());
+            pstmt.setString(10, objFP.deviceV.toString());
+            pstmt.setString(11, objFP.id);
+
+            // Thực thi câu lệnh
+            int affectedRows = pstmt.executeUpdate();
+
+            // Kiểm tra xem có dòng nào được cập nhật không
+            if (affectedRows > 0) {
+                isSuccess = true;
+            }
+
+            Log.logServices("capNhatThietBiVanTayDB: Đã cập nhật thiết bị có ID = " + objFP.id);
+        } catch (Exception Ex) {
+            Log.logServices("capNhatThietBiVanTayDB Exception: " + Ex.getMessage());
+        } finally {
+            // Đóng các tài nguyên
+            try {
+                if (pstmt != null) pstmt.close();
+                if (connect != null) connect.close();
+            } catch (SQLException ex) {
+                Log.logServices("capNhatThietBiVanTayDB SQLException: " + ex.getMessage());
+            }
+        }
+        return isSuccess;
+    }
+    public static boolean xoaThietBiFP(String id) {
+        Connection connect = null;
+        PreparedStatement pstmt = null;
+        boolean isSuccess = false;
+        try {
+            String strQuery = "DELETE FROM thietbivantay WHERE id = ?";
+            connect = DbUtil.getConnect();
+            pstmt = connect.prepareStatement(strQuery);
+            // Thiết lập giá trị cho tham số (id)
+            pstmt.setString(1, id);
+
+            // Thực thi câu lệnh
+            int affectedRows = pstmt.executeUpdate();
+
+            // Kiểm tra xem có dòng nào được xóa không
+            if (affectedRows > 0) {
+                isSuccess = true;
+            }
+
+            Log.logServices("xoaThietBiFP: Đã xóa thiết bị có ID = " + id);
+        } catch (Exception Ex) {
+            Log.logServices("xoaThietBiFP Exception: " + Ex.getMessage());
+        } finally {
+            // Đóng các tài nguyên
+            try {
+                if (pstmt != null) pstmt.close();
+                if (connect != null) connect.close();
+            } catch (SQLException ex) {
+                Log.logServices("xoaThietBiFP SQLException: " + ex.getMessage());
+            }
+        }
+        return isSuccess;
+    }
+    public static boolean capNhatPortVanTayDB(String port,String idDonVi) {
+        Connection connect = null;
+        PreparedStatement pstmt = null;
+        boolean isSuccess = false;
+        try {
+            String strQuery = "UPDATE thietbivantay SET port = ? WHERE idDonVi = ?";
+            connect = DbUtil.getConnect();
+            pstmt = connect.prepareStatement(strQuery);
+
+            // Thiết lập giá trị cho các tham số từ đối tượng ObjVpass
+            pstmt.setString(1, port);
+            pstmt.setString(2, idDonVi);
+
+
+            // Thực thi câu lệnh
+            int affectedRows = pstmt.executeUpdate();
+
+            // Kiểm tra xem có dòng nào được cập nhật không
+            if (affectedRows > 0) {
+                isSuccess = true;
+            }
+
+            Log.logServices("capNhatPortVanTayDB: Đã cập nhật thiết bị có idDonVi = " + idDonVi);
+        } catch (Exception Ex) {
+            Log.logServices("capNhatPortVanTayDB Exception: " + Ex.getMessage());
+        } finally {
+            // Đóng các tài nguyên
+            try {
+                if (pstmt != null) pstmt.close();
+                if (connect != null) connect.close();
+            } catch (SQLException ex) {
+                Log.logServices("capNhatPortVanTayDB SQLException: " + ex.getMessage());
+            }
+        }
+        return isSuccess;
+    }
+    public static String truyenIDRaCOM(String s) {
+        String kq = "";
+        try {
+            for(ObjFP arr: getThietBiFP()){
+                if(s.equals(arr.idDonVi)){
+                    kq=arr.port;
+                }
+            }
+
+
+        }catch (Exception ex){
+            Log.logServices("truyenIDRaCOM Exception" +ex.getMessage());
+
+        }
+        return kq;
+
+    }
+    public static boolean capNhatCoSoDuLieuFP(ObjThemSuaXoaRQ orK, ArrayList<FingerData> objF) {
+        Connection connect = null;
+        PreparedStatement pstmt = null;
+        boolean isSuccess = false;
+        try {
+            String strQuery = "UPDATE info_vid SET fingerData = ? WHERE idVid = ? AND personName = ?";
+            connect = DbUtil.getConnect();
+            pstmt = connect.prepareStatement(strQuery);
+
+            // Thiết lập giá trị cho các tham số từ đối tượng ObjVpass
+            pstmt.setString(1, objF.toString());
+            pstmt.setString(2, orK.thongTinNguoi.idVid);
+            pstmt.setString(3, orK.thongTinNguoi.personName);
+
+
+            // Thực thi câu lệnh
+            int affectedRows = pstmt.executeUpdate();
+
+            // Kiểm tra xem có dòng nào được cập nhật không
+            if (affectedRows > 0) {
+                isSuccess = true;
+            }
+
+            Log.logServices("capNhatCoSoDuLieuFP: Đã cập nhật thiết bị có ID = " + orK.thongTinNguoi.idVid);
+        } catch (Exception Ex) {
+            Log.logServices("capNhatCoSoDuLieuFP Exception: " + Ex.getMessage());
+        } finally {
+            // Đóng các tài nguyên
+            try {
+                if (pstmt != null) pstmt.close();
+                if (connect != null) connect.close();
+            } catch (SQLException ex) {
+                Log.logServices("capNhatCoSoDuLieuFP SQLException: " + ex.getMessage());
+            }
+        }
+        return isSuccess;
+    }
+    public static boolean capNhatCoSoDuLieuFPCuThe(String idVid,String personName, ArrayList<FingerData> objF) {
+        Connection connect = null;
+        PreparedStatement pstmt = null;
+        boolean isSuccess = false;
+        try {
+            String strQuery = "UPDATE info_vid SET fingerData = ? WHERE idVid = ? AND personName = ?";
+            connect = DbUtil.getConnect();
+            pstmt = connect.prepareStatement(strQuery);
+
+            // Thiết lập giá trị cho các tham số từ đối tượng ObjVpass
+            pstmt.setString(1, objF.toString());
+            pstmt.setString(2, idVid);
+            pstmt.setString(3, personName);
+
+
+            // Thực thi câu lệnh
+            int affectedRows = pstmt.executeUpdate();
+
+            // Kiểm tra xem có dòng nào được cập nhật không
+            if (affectedRows > 0) {
+                isSuccess = true;
+            }
+
+            Log.logServices("capNhatCoSoDuLieuFPCuThe: Đã cập nhật thiết bị có ID = " + idVid);
+        } catch (Exception Ex) {
+            Log.logServices("capNhatCoSoDuLieuFPCuThe Exception: " + Ex.getMessage());
+        } finally {
+            // Đóng các tài nguyên
+            try {
+                if (pstmt != null) pstmt.close();
+                if (connect != null) connect.close();
+            } catch (SQLException ex) {
+                Log.logServices("capNhatCoSoDuLieuFPCuThe SQLException: " + ex.getMessage());
+            }
+        }
+        return isSuccess;
     }
 }

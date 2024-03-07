@@ -16,7 +16,6 @@ import java.util.ArrayList;
 import java.util.Date;
 
 import static vn.vimass.service.BackUp.BackUpControllerDataBaseVer2.themMoiThietBiVPassDB;
-import static vn.vimass.service.BackUp.BackUpControllerDataBaseVer2.themMoiThietBiVanTayDB;
 import static vn.vimass.service.BackUp.BackUpFunction.urlMay2;
 import static vn.vimass.service.CallService.CallService.PostREST;
 

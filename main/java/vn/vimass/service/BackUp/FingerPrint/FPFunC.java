@@ -3,6 +3,7 @@ package vn.vimass.service.BackUp.FingerPrint;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -13,18 +14,18 @@ import com.fazecast.jSerialComm.SerialPortDataListener;
 import com.fazecast.jSerialComm.SerialPortEvent;
 import com.google.gson.Gson;
 import vn.vimass.service.BackUp.FingerPrint.Obj.*;
+import vn.vimass.service.crawler.bhd.Tool;
 import vn.vimass.service.entity.ResponseMessage;
 import vn.vimass.service.entity.ResponseMessage1;
 import vn.vimass.service.log.Log;
 import vn.vimass.service.table.NhomThietBiDiem.entity.ListDiem;
-import vn.vimass.service.table.object.ObjectInfoVid;
+import vn.vimass.service.table.object.ObjectFPRequest;
 import vn.vimass.service.utils.ServivceCommon;
 
-import static vn.vimass.service.BackUp.BackUpControllerDataBaseVer2.capNhatPortVanTayDB;
 import static vn.vimass.service.BackUp.FingerPrint.FPComandPacket.*;
 import static vn.vimass.service.BackUp.FingerPrint.FPDataBase.*;
+import static vn.vimass.service.BackUp.FingerPrint.FPDataBase.capNhatCoSoDuLieuFPCuThe;
 import static vn.vimass.service.BackUp.FingerPrint.Obj.CommandList.FP_Cancel;
-import static vn.vimass.service.BackUp.FingerPrint.Obj.CommandList.Identify_Free;
 import static vn.vimass.service.CallService.CallService.PostREST;
 
 public class FPFunC {
@@ -330,8 +331,8 @@ public class FPFunC {
         }
     }
 
-    public static FingerData layFPDataTheoNguoi(ObjectInfoVid oTKR) {
-        FingerData data = new FingerData();
+    public static ArrayList<FingerData> layFPDataTheoNguoi(ObjectFPRequest oTKR) {
+        ArrayList<FingerData> data = new ArrayList<>();
         try {
             data = getDataFingerFromVid(oTKR);
         } catch (Exception ex) {
@@ -342,17 +343,88 @@ public class FPFunC {
 
     }
 
-    public static ResponseMessage1 dangKyVanTay(ObjThemSuaXoaRQ orK) {
+    public static ResponseMessage1 dangKyVanTay(ObjThemSuaXoaRQ orK, String COM, ArrayList<FingerData> arrF) {
         ResponseMessage1 res = new ResponseMessage1();
+        String kqF = "";
+        res.funcId = 127;
         try {
-            NhayDen("COM3");
-
+            FingerData fp = new FingerData();
+            kqF = layValueVanTay(COM);
+            if (kqF != null && !kqF.equals("")) {
+                if (kqF.equals("2")) {
+                    res.msgCode = 2;
+                    res.msgContent = Tool.setBase64("Vân tay không rõ hoặc đã tồn tại");
+                } else if (kqF.equals("3")) {
+                    res.msgCode = 2;
+                    res.msgContent = Tool.setBase64("Time out");
+                } else {
+                    fp = themVaoDBFP(orK, kqF, arrF);
+                    if (fp != null) {
+                        res.msgCode = 1;
+                        res.msgContent = Tool.setBase64("Thành công!");
+                        res.result = Tool.setBase64(fp.toString());
+                    }
+                }
+            }
 
         } catch (Exception ex) {
             Log.logServices("dangKyVanTay Exception!" + ex.getMessage());
 
         }
         return res;
+    }
+
+    private static FingerData themVaoDBFP(ObjThemSuaXoaRQ orK, String kqFData, ArrayList<FingerData> arrF) {
+        FingerData fp = new FingerData();
+        try {
+            if (arrF == null || (arrF != null && arrF.size() < 4)) {
+                fp.emptyID = kqFData.split("-")[0];
+                fp.idThietBiFP = orK.idFP;
+                fp.name = orK.nameFP;
+                fp.data = kqFData.split("-")[1];
+            }
+            arrF.add(fp);
+            capNhatCoSoDuLieuFP(orK, arrF);
+
+        } catch (Exception ex) {
+            Log.logServices("themVaoDBFP Exception!" + ex.getMessage());
+
+        }
+        return fp;
+    }
+
+
+    private static String layValueVanTay(String COM) {
+        String kqFinal = "";
+        String emtyID = "";
+        String kq = "";
+        String value = "";
+        try {
+            Log.logServices("layValueVanTay COM " + COM);
+
+            sendData(SerialPort.getCommPort(COM), identifyFree(FP_Cancel), 1);
+            NhayDen(COM);
+            emtyID = sendData(SerialPort.getCommPort(COM), getEmptyID(), 100).substring(16, 20);
+            kq = sendData(SerialPort.getCommPort(COM), enrollOneTime(emtyID), 5000);
+            if (kq != null && !kq.equals("")) {
+                Log.logServices("layValueVanTay enrol " + kq);
+                String resCM = kq.substring(16, 20);
+                if (kq.indexOf("f4ff") > -1) {
+                    kqFinal = emtyID + "-" + sendData(SerialPort.getCommPort(COM), readTemp(emtyID), 1000).substring(68, 1064);
+                    Log.logServices("dangKyVanTay readtemp " + kqFinal);
+                } else if (resCM.equals("1900")) {
+                    kqFinal = "2";
+
+                } else if (resCM.equals("2300")) {
+                    kqFinal = "3";
+                }
+            }
+        } catch (Exception ex) {
+            Log.logServices("layValueVanTay Exception!" + ex.getMessage());
+
+        }
+        return kqFinal;
+
     }
 
     public static void NhayDen(String COM) {
@@ -363,7 +435,7 @@ public class FPFunC {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            sendData(SerialPort.getCommPort(COM), identifyFree(Identify_Free), 1);
+            sendData(SerialPort.getCommPort(COM), "55 AA 04 01 02 00 e7 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 f0 01", 1);
             try {
                 Thread.sleep(200);
             } catch (InterruptedException e) {
@@ -375,7 +447,7 @@ public class FPFunC {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            sendData(SerialPort.getCommPort(COM), identifyFree(Identify_Free), 1);
+            sendData(SerialPort.getCommPort(COM), "55 AA 04 01 02 00 e7 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 f0 01", 1);
             try {
                 Thread.sleep(200);
             } catch (InterruptedException e) {
@@ -387,7 +459,7 @@ public class FPFunC {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            sendData(SerialPort.getCommPort(COM), identifyFree(Identify_Free), 1);
+            sendData(SerialPort.getCommPort(COM), "55 AA 04 01 02 00 e7 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 f0 01", 1);
             try {
                 Thread.sleep(200);
             } catch (InterruptedException e) {
@@ -399,7 +471,7 @@ public class FPFunC {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            sendData(SerialPort.getCommPort(COM), identifyFree(Identify_Free), 1);
+            sendData(SerialPort.getCommPort(COM), "55 AA 04 01 02 00 e7 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 f0 01", 1);
             try {
                 Thread.sleep(200);
             } catch (InterruptedException e) {
@@ -411,7 +483,7 @@ public class FPFunC {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            sendData(SerialPort.getCommPort(COM), identifyFree(Identify_Free), 1);
+            sendData(SerialPort.getCommPort(COM), "55 AA 04 01 02 00 e7 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 f0 01", 1);
             try {
                 Thread.sleep(200);
             } catch (InterruptedException e) {
@@ -479,7 +551,7 @@ public class FPFunC {
                     if (port.getDescriptivePortName() != null && port.getDescriptivePortName().contains("USB Serial Port")) {
                         if (!hs.containsKey(port.getSystemPortName())) {
                             Log.logServices("capNhatIdFP kq!" + sendData(port, setDeiceID(idMoiNhat), 200));
-
+                            NhayDen(port.getSystemPortName());
                         }
 
                     }
@@ -491,6 +563,7 @@ public class FPFunC {
             }
 
         } catch (Exception ex) {
+            Log.logServices("capNhatIdFP " + ex.getMessage());
 
         }
 
@@ -575,7 +648,7 @@ public class FPFunC {
 
     private static ObjFPSua chuyenObjSangObjectSuaVanTay(ObjFP objFP) {
         ObjFPSua objFPSua = new ObjFPSua();
-        ArrayList<String> listIDDiem =new ArrayList<>();
+        ArrayList<String> listIDDiem = new ArrayList<>();
         try {
             objFPSua.id = objFP.id;
             objFPSua.mcID = objFP.mcID;
@@ -583,7 +656,7 @@ public class FPFunC {
             objFPSua.nameF = objFP.nameF;
             objFPSua.totalF = objFP.totalF;
             objFPSua.currentF = objFP.currentF;
-            Log.logServices("chuyenObjSangObjectSuaVanTay1" +objFP.id);
+            Log.logServices("chuyenObjSangObjectSuaVanTay1" + objFP.id);
 
             objFPSua.IdDeviceVManager = objFP.deviceV.id;
 
@@ -603,26 +676,38 @@ public class FPFunC {
 
     public static void capNhatPort(ArrayList<ObjFP> arrayList) {
         try {
-            ExecutorService executorService = Executors.newFixedThreadPool(10); // Khởi tạo ExecutorService trong phương thức
             SerialPort[] ports = SerialPort.getCommPorts();
             for (SerialPort port : ports) {
-                executorService.submit(() -> {
-                    if (port.getDescriptivePortName() != null && port.getDescriptivePortName().contains("USB Serial Port")) {
-                        String t = sendData(SerialPort.getCommPort(port.getSystemPortName()), "55 AA 11 01 00 00 0200 00 00 00 00 00 00 00 00 00 00 00 00 00 001301", 300);
-                        for (ObjFP obj:arrayList){
-                            if(obj.idDonVi.equals(t.substring(16,20))){
-                                capNhatPortVanTayDB(port.getSystemPortName(), t.substring(16, 20));
-                            }
+                if (port.getDescriptivePortName() != null && port.getDescriptivePortName().contains("USB Serial Port")) {
+                    String t = sendData(SerialPort.getCommPort(port.getSystemPortName()), "55 AA 11 01 00 00 0200 00 00 00 00 00 00 00 00 00 00 00 00 00 001301", 100);
+                    for (ObjFP obj : arrayList) {
+                        if (obj.idDonVi.equals(t.substring(16, 20))) {
+                            capNhatPortVanTayDB(port.getSystemPortName(), t.substring(16, 20));
                         }
                     }
-                });
-            }
-            executorService.shutdown();
-            if (!executorService.awaitTermination(300, TimeUnit.MILLISECONDS)) {
-                executorService.shutdown();
+                }
+
             }
         } catch (Exception ex) {
             Log.logServices("capNhatPort" + ex.getMessage());
+
+        }
+    }
+
+    public static void xoaKhoiDB(ArrayList<FingerData> dataFPTrongMini, ObjThemSuaXoaRQ requestClient) {
+        try {
+            Iterator<FingerData> iterator = dataFPTrongMini.iterator();
+            while (iterator.hasNext()) {
+                FingerData obj = iterator.next();
+                // Kiểm tra điều kiện để xóa
+                if (obj.emptyID.equals(requestClient.emptyID)) {
+                    iterator.remove();
+                }
+            }
+            capNhatCoSoDuLieuFPCuThe(requestClient.thongTinNguoi.idVid, requestClient.thongTinNguoi.personName, dataFPTrongMini);
+        } catch (Exception ex) {
+            Log.logServices("xoaKhoiDB" + ex.getMessage());
+
 
         }
     }

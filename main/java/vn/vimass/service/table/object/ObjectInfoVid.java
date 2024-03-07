@@ -3,6 +3,8 @@ package vn.vimass.service.table.object;
 import com.google.gson.Gson;
 import vn.vimass.service.BackUp.FingerPrint.Obj.FingerData;
 
+import java.util.ArrayList;
+
 public class ObjectInfoVid {
 
     public String id; // = idVid + personPosition
@@ -33,13 +35,13 @@ public class ObjectInfoVid {
 
     public String cksFaceOfVid;
 
-    public FingerData fingerData;
+    public ArrayList<FingerData> fingerData;
 
-    public FingerData getFingerData() {
+    public ArrayList<FingerData> getFingerData() {
         return fingerData;
     }
 
-    public void setFingerData(FingerData fingerData) {
+    public void setFingerData(ArrayList<FingerData> fingerData) {
         this.fingerData = fingerData;
     }
 

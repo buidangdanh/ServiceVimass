@@ -387,7 +387,7 @@ public class InforVid {
                             "FROM "+PersonOfGroup.TABLE_NAME+" AS tb1\n" +
                             "INNER JOIN "+TABLE_NAME+" AS tb3 ON tb1.personName = tb3.personName\n" +
                             "WHERE ("+condition+")"+
-                            " GROUP BY tb3.id limit "+limit+" offset "+offset+";";
+                            " GROUP BY tb1.id limit "+limit+" offset "+offset+";";
 
           //  System.out.println("strQuery getListObjecFace v1:  ==>" + strQuery);
             Log.logServices("strQuery getListObjecFace v1:  ==>" + strQuery);
@@ -491,12 +491,12 @@ public class InforVid {
         int count = 0;
         try {
             String strQuery = "";
-            String condition = getCondition(idQR);
+            String condition = getConditionTatol(idQR);
             strQuery += "SELECT count(*) as tatol\n" +
                     "FROM (SELECT tb3.id,tb3.hoTen, tb1.chucDanh, tb3.uID, tb3.idVid, tb3.personPosition,tb1.userName,tb3.faceData, tb1.groupID\n" +
                     "FROM "+ PersonOfGroup.TABLE_NAME+" AS tb1\n" +
                     "INNER JOIN "+TABLE_NAME+" AS tb3 ON tb1.personName = tb3.personName\n" +
-                    "WHERE"+condition+ " GROUP BY tb3.id) AS subquery;";
+                    "WHERE "+condition+ " GROUP BY tb1.id) AS subquery;";
             Log.logServices("tatol strQuery: " + strQuery);
             connect = DbUtil.getConnect();
             pstmt = connect.prepareStatement(strQuery);
@@ -509,6 +509,50 @@ public class InforVid {
             Log.logServices("tatol Exception v1: " + e.getMessage());
         }
         return count;
+
+    }
+
+    private static String getConditionTatol(String idQR){
+        String condition = "";
+        ArrayList<String> arrStr = new ArrayList<String>();
+        ArrayList<ObjectCheckTypeGr> arrObjectCheckTypeGr = Nhom.getListObjectCheckTypeGr(idQR);
+        System.out.println("getObjectCheckTypeGr ==>" + arrObjectCheckTypeGr);
+        Log.logServices("getObjectCheckTypeGr ==>" + arrObjectCheckTypeGr);
+        if(arrObjectCheckTypeGr != null){
+            for(ObjectCheckTypeGr itemGrOfQr: arrObjectCheckTypeGr){
+
+                if(itemGrOfQr.groupLevel == 2){
+                    Type collectionTypeGr = new TypeToken<List<ObjGroup>>() {
+                    }.getType();
+                    ArrayList<ObjGroup> arrListGr = new Gson().fromJson(itemGrOfQr.listGr, collectionTypeGr);
+
+                    for(ObjGroup itemGr: arrListGr){
+                        if(arrStr.isEmpty()) {
+                            condition += "tb1.groupID = '" + itemGrOfQr.groupID + "' AND ";
+                            arrStr.add(itemGrOfQr.groupID);
+                        }else{
+                            if(!arrStr.contains(itemGrOfQr.groupID)){
+                                condition += "tb1.groupID = '" + itemGrOfQr.groupID + "' AND ";
+                                arrStr.add(itemGrOfQr.groupID);
+                            }
+                        }
+                    }
+                }
+                if(itemGrOfQr.groupLevel == 1){
+                    if(arrStr.isEmpty()) {
+                        condition += "tb1.groupID = '" + itemGrOfQr.groupID + "' AND ";
+                        arrStr.add(itemGrOfQr.groupID);
+                    }else {
+                        if(!arrStr.contains(itemGrOfQr.groupID)){
+                            condition += "tb1.groupID = '" + itemGrOfQr.groupID + "' AND ";
+                            arrStr.add(itemGrOfQr.groupID);
+                        }
+                    }
+                }
+
+            }
+        }
+        return condition.substring(0, condition.length() - 4);
 
     }
 

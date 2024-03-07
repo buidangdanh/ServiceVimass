@@ -29,12 +29,12 @@ public class FPComandPacket {
         return hexSFinal;
     }
 
-    public static String getEmptyID(String tempNo) {
+    public static String getEmptyID() {
         String hexSFinal = "";
         try {
             hexSFinal = "55 AA 07 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 07 01";
         } catch (Exception e) {
-            Log.logServices("testConnection Exception!" + e.getMessage());
+            Log.logServices("getEmptyID Exception!" + e.getMessage());
 
         }
         return hexSFinal;
@@ -59,6 +59,39 @@ public class FPComandPacket {
             hexSFinal = hexS + tinhCks(hexS);
         } catch (Exception e) {
             Log.logServices("setDeiceID Exception!" + e.getMessage());
+
+        }
+        return hexSFinal;
+    }
+    public static String enrollOneTime(String emptyID) {
+        String hexSFinal = "";
+        try {
+            String hexS = "55 AA 04 01 02 00 " + emptyID + "00 00 00 00 00 00 00 00 00 00 00 00 00 00 ";
+            hexSFinal = hexS + tinhCks(hexS);
+        } catch (Exception e) {
+            Log.logServices("enrollOneTime Exception!" + e.getMessage());
+
+        }
+        return hexSFinal;
+    }
+    public static String readTemp(String tempNo) {
+        String hexSFinal = "";
+        try {
+            String hexS = "55 AA 0A 01 02 00 " + tempNo + "00 00 00 00 00 00 00 00 00 00 00 00 00 00";
+            hexSFinal = hexS + tinhCks(hexS);
+        } catch (Exception e) {
+            Log.logServices("enrollOneTime Exception!" + e.getMessage());
+
+        }
+        return hexSFinal;
+    }
+    public static String clearTemp(String tempNo) {
+        String hexSFinal = "";
+        try {
+            String hexS = "55 AA 05 01 02 00 " + tempNo + " 00 00 00 00 00 00 00 00 00 00 00 00 00 00";
+            hexSFinal = hexS + tinhCks(hexS);
+        } catch (Exception e) {
+            Log.logServices("clearTemp Exception!" + e.getMessage());
 
         }
         return hexSFinal;
