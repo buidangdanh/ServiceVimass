@@ -24,7 +24,7 @@ public class FPRoutes {
         res.funcId = 126;
         try {
             if (statusFP) {
-
+                System.out.println("test git hub");
                 res.msgCode = 1;
                 res.msgContent = "Success!";
 
