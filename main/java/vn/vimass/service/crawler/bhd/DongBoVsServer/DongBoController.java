@@ -164,6 +164,7 @@ public class DongBoController {
                     }
                 }
             }
+            statusFP = true;
 /*            new Thread(() -> {
                 try {
                     Thread.sleep(1000); // Pause execution in this thread for 1000ms

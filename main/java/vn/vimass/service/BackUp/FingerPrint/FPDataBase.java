@@ -355,7 +355,7 @@ public class FPDataBase {
         String kq = "";
         try {
             for(ObjFP arr: getThietBiFP()){
-                if(s.equals(arr.idDonVi)){
+                if(s.equals(arr.id)){
                     kq=arr.port;
                 }
             }

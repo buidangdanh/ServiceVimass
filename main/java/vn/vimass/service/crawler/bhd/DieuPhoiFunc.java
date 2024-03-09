@@ -71,12 +71,10 @@ public class DieuPhoiFunc {
                     result ="";
                     return geValueResponseMessage1(funcId, 0, content, result);
                 }
-
 //            } else {
 //                System.out.println("funcAuthenticInOut error cks");
 //                return geValueResponseMessage1(funcId, 0, "error cks", "");
 //            }
-
         } catch (Exception e) {
             System.out.println("funcAuthenticInOut Exception: " + e.getMessage());
             System.out.println("funcAuthenticInOut Exception: " + e.getMessage());

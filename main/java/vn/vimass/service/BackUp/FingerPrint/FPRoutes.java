@@ -62,7 +62,7 @@ public class FPRoutes {
                         res.msgCode = 1;
                         res.result = Tool.setBase64(dataFPTrongMini.toString());
                     } else if (requestClient.type == 1) {
-                        if (dataFPTrongMini.size() >= 4) {
+                        if (dataFPTrongMini.size() >= 10) {
                             res.msgCode = 2;
                             res.msgContent = Tool.setBase64("Vượt số lượng vân tay cho phép");
                         } else {

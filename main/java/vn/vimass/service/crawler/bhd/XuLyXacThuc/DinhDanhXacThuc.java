@@ -117,6 +117,7 @@ public class DinhDanhXacThuc {
                 vIDorPhone = objAuthen.vID;
                 objPerson = PersonOfGroup.getItemPerOfGroup(objAuthen.idQR, objAuthen.vID);
                 System.out.println("objPerson ===========> " + objPerson);
+                Log.logServices("objPerson ===========> " + objPerson);
                 if (objPerson == null) {
                     objPerson = PersonOfGroup.getItemPerOfGroupOfAllQR(objAuthen.vID);
                 }
@@ -137,21 +138,26 @@ public class DinhDanhXacThuc {
 
             String maGD = objAuthen.idQR + objAuthen.thoiGianGhiNhan + generateSessionKeyLowestCase(5);
             System.out.println("maGD ===========> " + maGD + "/n  objAuthen ===========> " + objAuthen);
+            Log.logServices("maGD ===========> " + maGD + "/n  objAuthen ===========> " + objAuthen);
             boolean checkInOut = false;
 
             ObjQR objQR = getObjInfoQR(objAuthen.idQR);
             System.out.println("objQR ===========> " + objQR);
+            Log.logServices("objQR ===========> " + objQR);
             ObjInfoQR objInfoQR = objQR.infor;
 
             ObjLockDevice objLockDevice = ThietBiKhoa.getItem(objQR.LockDeviceID);
             System.out.println("objLockDevice ===========> " + objLockDevice);
+            Log.logServices("objLockDevice ===========> " + objLockDevice);
             checkInOut = fucnCheckInOut(objAuthen.idQR, objAuthen.vID, objAuthen.phone);
             System.out.println("checkInOut ===========> " + checkInOut);
+            Log.logServices("checkInOut ===========> " + checkInOut);
             ObjectLichSuRaVaoQuetQr itemLichSu = getValueLichSuRaVaoQr(maGD, objAuthen.vID, objAuthen.phone, name,
                     objInfoQR.tenCuaHang, objAuthen.idQR, objInfoQR.diaChi, objAuthen.thoiGianGhiNhan, 0, objAuthen.personNumber,
                     objAuthen.timeAuthen, objAuthen.typeDataAuThen, objAuthen.vpassID, objPerson.chucDanh, objAuthen.typeXacThuc,
                     objInfoQR.toString(), avatar);
             System.out.println("itemLichSu ===========> " + itemLichSu);
+            Log.logServices("itemLichSu ===========> " + itemLichSu);
             if (checkInOut) {
                 funcXuLyHienThiDongMoCuaV1(objLockDevice, itemLichSu);
                 UploadXacThucClient.upLoad(objAuthen.id, objAuthen.vID, "", objAuthen.personNumber,
@@ -162,6 +168,7 @@ public class DinhDanhXacThuc {
 
                 checkInOunt = false;
                 System.out.println("Thẻ " + objAuthen.accName + " không có trong danh sách quản lý đơn vị!");
+                Log.logServices("Thẻ " + objAuthen.accName + " không có trong danh sách quản lý đơn vị!");
             }
         } catch (Exception ex) {
             Log.logServices("checkQR Exception!" + ex.getMessage());

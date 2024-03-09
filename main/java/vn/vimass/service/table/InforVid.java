@@ -528,11 +528,11 @@ public class InforVid {
 
                     for(ObjGroup itemGr: arrListGr){
                         if(arrStr.isEmpty()) {
-                            condition += "tb1.groupID = '" + itemGrOfQr.groupID + "' AND ";
+                            condition += "tb1.groupID = '" + itemGrOfQr.groupID + "' OR ";
                             arrStr.add(itemGrOfQr.groupID);
                         }else{
                             if(!arrStr.contains(itemGrOfQr.groupID)){
-                                condition += "tb1.groupID = '" + itemGrOfQr.groupID + "' AND ";
+                                condition += "tb1.groupID = '" + itemGrOfQr.groupID + "' OR ";
                                 arrStr.add(itemGrOfQr.groupID);
                             }
                         }
@@ -540,11 +540,11 @@ public class InforVid {
                 }
                 if(itemGrOfQr.groupLevel == 1){
                     if(arrStr.isEmpty()) {
-                        condition += "tb1.groupID = '" + itemGrOfQr.groupID + "' AND ";
+                        condition += "tb1.groupID = '" + itemGrOfQr.groupID + "' OR ";
                         arrStr.add(itemGrOfQr.groupID);
                     }else {
                         if(!arrStr.contains(itemGrOfQr.groupID)){
-                            condition += "tb1.groupID = '" + itemGrOfQr.groupID + "' AND ";
+                            condition += "tb1.groupID = '" + itemGrOfQr.groupID + "' OR ";
                             arrStr.add(itemGrOfQr.groupID);
                         }
                     }
@@ -552,7 +552,7 @@ public class InforVid {
 
             }
         }
-        return condition.substring(0, condition.length() - 4);
+        return condition.substring(0, condition.length() - 3);
 
     }
 
