@@ -383,11 +383,19 @@ public class InforVid {
         ObjectFaceOfVid item = null;
         try {
             String condition = getCondition(idQR);
-            strQuery += "SELECT tb3.id,tb3.hoTen, tb1.chucDanh, tb3.uID, tb3.idVid, tb3.personPosition,tb1.userName,tb3.faceData, tb1.groupID\n" +
-                            "FROM "+PersonOfGroup.TABLE_NAME+" AS tb1\n" +
-                            "INNER JOIN "+TABLE_NAME+" AS tb3 ON tb1.personName = tb3.personName\n" +
-                            "WHERE ("+condition+")"+
-                            " GROUP BY tb1.id limit "+limit+" offset "+offset+";";
+            if(limit > 0) {
+                strQuery += "SELECT tb3.id,tb3.hoTen, tb1.chucDanh, tb3.uID, tb3.idVid, tb3.personPosition,tb1.userName,tb3.faceData, tb1.groupID\n" +
+                        "FROM " + PersonOfGroup.TABLE_NAME + " AS tb1\n" +
+                        "INNER JOIN " + TABLE_NAME + " AS tb3 ON tb1.personName = tb3.personName\n" +
+                        "WHERE (" + condition + ")" +
+                        " GROUP BY tb1.id limit " + limit + " offset " + offset + ";";
+            }else if(limit == 0 && offset == 0){
+                strQuery += "SELECT tb3.id,tb3.hoTen, tb1.chucDanh, tb3.uID, tb3.idVid, tb3.personPosition,tb1.userName,tb3.faceData, tb1.groupID\n" +
+                        "FROM "+PersonOfGroup.TABLE_NAME+" AS tb1\n" +
+                        "INNER JOIN "+TABLE_NAME+" AS tb3 ON tb1.personName = tb3.personName\n" +
+                        "WHERE ("+condition+")"+
+                        " GROUP BY tb1.id;";
+            }
 
           //  System.out.println("strQuery getListObjecFace v1:  ==>" + strQuery);
             Log.logServices("strQuery getListObjecFace v1:  ==>" + strQuery);
@@ -397,7 +405,7 @@ public class InforVid {
             while (resultSet.next()) {
                 item = getValueObjectFaceV1(resultSet, idQR);
              //   System.out.println("getListObjecFace itemv1: " + item);
-                Log.logServices("getListObjecFace itemv1: " + item);
+              //  Log.logServices("getListObjecFace itemv1: " + item);
                 arrayList.add(item);
             }
            // System.out.println("getListObjecFace ArrayList v1: " + arrayList);
@@ -528,11 +536,11 @@ public class InforVid {
 
                     for(ObjGroup itemGr: arrListGr){
                         if(arrStr.isEmpty()) {
-                            condition += "tb1.groupID = '" + itemGrOfQr.groupID + "' OR ";
+                            condition += "(tb1.groupID = '" + itemGrOfQr.groupID + "' AND tb3.faceData <> '') OR ";
                             arrStr.add(itemGrOfQr.groupID);
                         }else{
                             if(!arrStr.contains(itemGrOfQr.groupID)){
-                                condition += "tb1.groupID = '" + itemGrOfQr.groupID + "' OR ";
+                                condition += "(tb1.groupID = '" + itemGrOfQr.groupID + "' AND tb3.faceData <> '') OR ";
                                 arrStr.add(itemGrOfQr.groupID);
                             }
                         }
@@ -540,11 +548,11 @@ public class InforVid {
                 }
                 if(itemGrOfQr.groupLevel == 1){
                     if(arrStr.isEmpty()) {
-                        condition += "tb1.groupID = '" + itemGrOfQr.groupID + "' OR ";
+                        condition += "(tb1.groupID = '" + itemGrOfQr.groupID + "' AND tb3.faceData <> '') OR ";
                         arrStr.add(itemGrOfQr.groupID);
                     }else {
                         if(!arrStr.contains(itemGrOfQr.groupID)){
-                            condition += "tb1.groupID = '" + itemGrOfQr.groupID + "' OR ";
+                            condition += "(tb1.groupID = '" + itemGrOfQr.groupID + "' AND tb3.faceData <> '') OR ";
                             arrStr.add(itemGrOfQr.groupID);
                         }
                     }

@@ -63,8 +63,6 @@ public class BackUpControllerDataBaseVer2 {
             Log.logServices("checkMatDB the Exception!");
             e.printStackTrace();
         }
-
-
         return item;
     }
 

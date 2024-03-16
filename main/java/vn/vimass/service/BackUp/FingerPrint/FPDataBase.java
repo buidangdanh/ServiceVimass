@@ -15,6 +15,8 @@ import vn.vimass.service.utils.DbUtil;
 import java.sql.*;
 import java.util.ArrayList;
 
+import static vn.vimass.service.BackUp.FingerPrint.FPFunC.removeAccent;
+
 public class FPDataBase {
     public static boolean checkIDupdateDBFingerInfoDB(FingerInfo obj) {
         boolean kq = false;
@@ -148,7 +150,7 @@ public class FPDataBase {
             Connection connect = DbUtil.getConnect();
             PreparedStatement pstmt = connect.prepareStatement(strQuery);
             pstmt.setString(1, oTKR.idVid);
-            pstmt.setString(2, oTKR.personName);
+            pstmt.setString(2, removeAccent(oTKR.personName));
             ResultSet resultSet = pstmt.executeQuery();
             if (resultSet.next()) { // Check if at least one record exists
                 if(resultSet.getString("fingerData")!=null&&!resultSet.getString("fingerData").equals("")){
@@ -187,7 +189,7 @@ public class FPDataBase {
                 arr.add(item);
             }
 
-            Log.logServices("getThietBiFP!" + pstmt);
+            //Log.logServices("getThietBiFP!" + pstmt);
 
         } catch (Exception Ex) {
             Log.logServices("getThietBiFP Exception!" + Ex.getMessage());
@@ -355,6 +357,8 @@ public class FPDataBase {
         String kq = "";
         try {
             for(ObjFP arr: getThietBiFP()){
+                Log.logServices("truyenIDRaCOM 1" +arr.id +"x"+s);
+
                 if(s.equals(arr.id)){
                     kq=arr.port;
                 }
@@ -380,7 +384,7 @@ public class FPDataBase {
             // Thiết lập giá trị cho các tham số từ đối tượng ObjVpass
             pstmt.setString(1, objF.toString());
             pstmt.setString(2, orK.thongTinNguoi.idVid);
-            pstmt.setString(3, orK.thongTinNguoi.personName);
+            pstmt.setString(3, removeAccent(orK.thongTinNguoi.personName));
 
 
             // Thực thi câu lệnh
@@ -391,7 +395,7 @@ public class FPDataBase {
                 isSuccess = true;
             }
 
-            Log.logServices("capNhatCoSoDuLieuFP: Đã cập nhật thiết bị có ID = " + orK.thongTinNguoi.idVid);
+            Log.logServices("capNhatCoSoDuLieuFP: Đã cập nhật thiết bị có ID = " + pstmt);
         } catch (Exception Ex) {
             Log.logServices("capNhatCoSoDuLieuFP Exception: " + Ex.getMessage());
         } finally {
@@ -417,7 +421,7 @@ public class FPDataBase {
             // Thiết lập giá trị cho các tham số từ đối tượng ObjVpass
             pstmt.setString(1, objF.toString());
             pstmt.setString(2, idVid);
-            pstmt.setString(3, personName);
+            pstmt.setString(3, removeAccent(personName));
 
 
             // Thực thi câu lệnh

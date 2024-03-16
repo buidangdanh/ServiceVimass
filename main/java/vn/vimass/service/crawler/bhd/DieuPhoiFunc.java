@@ -193,12 +193,11 @@ public class DieuPhoiFunc {
 //            goiDenMayHai(funcId, input, 2, idDiem);
 //        }
         System.out.println("funcInsertInfoVidOnly: " + input);
+        Log.logServices("funcInsertInfoVidOnly: " + input);
         ResponseMessage1 response = new ResponseMessage1();
         response.funcId = funcId;
         try {
-
             ObjectInfoVid objInfoVid = new Gson().fromJson(input, ObjectInfoVid.class);
-
             boolean checkFaceDataExist = checkFace(objInfoVid.idVid, objInfoVid.cksFaceOfVid);
             if(!checkFaceDataExist){
                 boolean checkExist = InforVid.checkExist(objInfoVid.idVid, objInfoVid.personName);
@@ -208,19 +207,20 @@ public class DieuPhoiFunc {
 
                         if (capNhatVaoInfoVid(objInfoVid)) {
                             System.out.println("Update FaceData true");
+                            Log.logServices("Update FaceData true");
                             response = StatusResponse(1);
                         } else {
                             System.out.println("Update FaceData false");
+                            Log.logServices("Update FaceData false");
                             response = StatusResponse(2);
                         }
                     }
                 }else{
-
                     System.out.println("Insert FaceData true");
+                    Log.logServices("Insert FaceData true");
                     InforVid.InsertData(objInfoVid);
                     response.result = VimassData.ContentResult;
                     response.msgCode = VimassData.typeResult;
-
                 }
             }else{
                 response = StatusResponse(4);
@@ -239,22 +239,16 @@ public class DieuPhoiFunc {
         ArrayList<ObjectInfoVid> list = InforVid.getlistDataFaceofVid(key);
         String strCheckSum = key;
         for(ObjectInfoVid item: list){
-
             strCheckSum += "_"+item.personName+"_"+item.faceData.substring(0, Math.min(item.faceData.length(), 5));;
-
         }
        String checkSum = ServivceCommon.bamMD5(strCheckSum);
-
         if(checkSum.equals(cksFace)){
             exist = true;
         }
-
         Log.logServices("checkFaceDate : "+exist +"\t"+ strCheckSum +"\t"+checkSum +"\t cksFace" +cksFace);
         System.out.println("checkFaceDate : "+exist+ "\t"+ strCheckSum +"\t"+checkSum +"\t cksFace" +cksFace);
         return exist;
-
     }
-
     private static boolean exists = false;
     private static List<ObjectQr> updateListDiem(String listDiem, String idDiemMoi) {
 

@@ -178,9 +178,6 @@ public class DongBoController {
         }
     }
 
-
-
-
     private static void funcVPass(ArrayList<ObjVpass> listVpassServer) {
         ArrayList<ObjVpass> listVpassLocal = new ArrayList<>();
         ArrayList<ObjVpass> arr = new ArrayList<>();

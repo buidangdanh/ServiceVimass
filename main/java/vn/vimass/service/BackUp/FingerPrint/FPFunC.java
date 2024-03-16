@@ -1,5 +1,6 @@
 package vn.vimass.service.BackUp.FingerPrint;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -8,6 +9,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 
 import com.fazecast.jSerialComm.SerialPort;
 import com.fazecast.jSerialComm.SerialPortDataListener;
@@ -356,7 +358,7 @@ public class FPFunC {
                     res.msgContent = Tool.setBase64("Vân tay không rõ hoặc đã tồn tại");
                 } else if (kqF.equals("3")) {
                     res.msgCode = 2;
-                    res.msgContent = Tool.setBase64("Time out");
+                    res.msgContent = Tool.setBase64("Vượt thời gian đặt vân tay");
                 } else {
                     fp = themVaoDBFP(orK, kqF, arrF);
                     if (fp != null) {
@@ -680,9 +682,11 @@ public class FPFunC {
             for (SerialPort port : ports) {
                 if (port.getDescriptivePortName() != null && port.getDescriptivePortName().contains("USB Serial Port")) {
                     String t = sendData(SerialPort.getCommPort(port.getSystemPortName()), "55 AA 11 01 00 00 0200 00 00 00 00 00 00 00 00 00 00 00 00 00 001301", 100);
-                    for (ObjFP obj : arrayList) {
-                        if (obj.idDonVi.equals(t.substring(16, 20))) {
-                            capNhatPortVanTayDB(port.getSystemPortName(), t.substring(16, 20));
+                    if(t!=null){
+                        for (ObjFP obj : arrayList) {
+                            if (obj.idDonVi.equals(t.substring(16, 20))) {
+                                capNhatPortVanTayDB(port.getSystemPortName(), t.substring(16, 20));
+                            }
                         }
                     }
                 }
@@ -710,6 +714,11 @@ public class FPFunC {
 
 
         }
+    }
+    public static String removeAccent(String input) {
+        String temp = Normalizer.normalize(input, Normalizer.Form.NFD);
+        Pattern pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
+        return pattern.matcher(temp).replaceAll("").replaceAll("Đ", "D").replaceAll("đ", "d");
     }
 
 

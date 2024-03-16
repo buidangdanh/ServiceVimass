@@ -6,6 +6,7 @@ import vn.vimass.service.BackUp.FingerPrint.FPFunC;
 import vn.vimass.service.BackUp.FingerPrint.FPRoutes;
 import vn.vimass.service.crawler.bhd.DongBoVsServer.DongBoController;
 import vn.vimass.service.crawler.bhd.DongBoVsServer.DongBoDiemRaVaoController;
+import vn.vimass.service.crawler.bhd.DongBoVsServer.SendDataFaceToDevice;
 import vn.vimass.service.crawler.bhd.XuLyLayKhuonMat.LayKhuonMatController;
 import vn.vimass.service.crawler.bhd.thongke.ThongKeController;
 import vn.vimass.service.entity.ResponseMessage1;
@@ -139,11 +140,11 @@ public class DieuPhoiController {
             case 123:// thong bao cap nhat nhom
                 res = DongBoController.thongBaoCapNhatNhom_ThietBiKhoa_QRvsThe(funcId,time,data);
                 break;
-            case 12301:// thong bao cap nhat Diem ra vao
-                res = DongBoDiemRaVaoController.thongBaoCapNhatDiemRaVao(funcId,time,data);
+            case 12301:// nhan thong tin ip,post, id(Điểm thiết bị quản lý) cua thiet bi dien thoai
+                res = SendDataFaceToDevice.resDeviceVpassActive(funcId,time,data);
                 break;
-            case 12302:// nhan thong tin ip,post, id(Điểm thiết bị quản lý) cua thiet bi dien thoai
-              //  res = DongBoDiemRaVaoController.thongBaoCapNhatDiemRaVao(funcId,time,data);
+            case 12302:// gui thong bao dong bo du lieu khuon mat tai diem dinh dnah, khi co thay doi
+                res = SendDataFaceToDevice.func(funcId,time,data);
                 break;
             case 124:// xoa user trong don vi
                 res = DongBoController.xoaUserTrongDonVi(funcId,time,data);
