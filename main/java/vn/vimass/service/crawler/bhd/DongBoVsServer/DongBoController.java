@@ -32,6 +32,7 @@ import static vn.vimass.service.BackUp.BackUpFunction.StatusResponse;
 import static vn.vimass.service.BackUp.FingerPrint.FPDataBase.*;
 import static vn.vimass.service.BackUp.FingerPrint.FPFunC.*;
 import static vn.vimass.service.BackUp.FingerPrint.FPFunC.capNhatIdFP;
+import static vn.vimass.service.BackUp.FingerPrint.FPRoutes.chuyenTrangThai;
 import static vn.vimass.service.CallService.CallService.PostREST;
 
 public class DongBoController {
@@ -113,7 +114,6 @@ public class DongBoController {
     }
 
     private static void funcFP(ArrayList<ObjFP> listFP) {
-        statusFP = false;
         HashMap<String, String> hashFPLocal = new HashMap<>();
         HashMap<String, String> hashFPLocal2 = new HashMap<>();
         ArrayList<ObjFP> listFPLocal = new ArrayList<>();
@@ -125,6 +125,7 @@ public class DongBoController {
             //lay thiet bi van tay hien tai
             listFPLocal = getThietBiFP();
             for (ObjFP ar : listFPLocal) {
+                chuyenTrangThai(ar.id, false);
                 if (ar.port != null && !ar.port.equals("")) {
                     hashFPLocal.put(ar.port, ar.idDonVi);
                 }
@@ -164,7 +165,9 @@ public class DongBoController {
                     }
                 }
             }
-            statusFP = true;
+            for (ObjFP ar : listFPLocal) {
+                chuyenTrangThai(ar.id, true);
+            }
 /*            new Thread(() -> {
                 try {
                     Thread.sleep(1000); // Pause execution in this thread for 1000ms
@@ -467,15 +470,12 @@ public class DongBoController {
                 }
                 // delete data
                 if (itemThietBiKhoa.type == 3) {
-
                     ArrayList<ObjectGroupOfQR> list = GroupOfQR.getListGrOfQR(objTb.idLookDevice);
                     for (ObjectGroupOfQR item : list) {
                         item.setIdQR("");
                         GroupOfQR.update(item);
-
                     }
                     ThietBiKhoa.delete(objTb.idLookDevice);
-
                 }
 
             } else {

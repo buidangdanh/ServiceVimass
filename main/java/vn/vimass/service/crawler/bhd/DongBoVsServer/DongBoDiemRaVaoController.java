@@ -58,7 +58,6 @@ public class DongBoDiemRaVaoController {
                 QRvsCard.delete(obj.id);
                 return true;
             }
-
         }
         return false;
     }

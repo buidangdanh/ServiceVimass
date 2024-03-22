@@ -2,18 +2,17 @@ package vn.vimass.service.BackUp.FingerPrint;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import vn.vimass.service.BackUp.FingerPrint.Obj.FingerData;
-import vn.vimass.service.BackUp.FingerPrint.Obj.FingerInfo;
-import vn.vimass.service.BackUp.FingerPrint.Obj.ObjFP;
-import vn.vimass.service.BackUp.FingerPrint.Obj.ObjThemSuaXoaRQ;
+import vn.vimass.service.BackUp.FingerPrint.Obj.*;
 import vn.vimass.service.log.Log;
 import vn.vimass.service.table.NhomThietBiDiem.entity.ListDiem;
 import vn.vimass.service.table.NhomThietBiDiem.entity.ObjVpass;
 import vn.vimass.service.table.object.ObjectFPRequest;
+import vn.vimass.service.table.object.ObjectInfoVid;
 import vn.vimass.service.utils.DbUtil;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import static vn.vimass.service.BackUp.FingerPrint.FPFunC.removeAccent;
 
@@ -409,6 +408,43 @@ public class FPDataBase {
         }
         return isSuccess;
     }
+    public static boolean capNhatCoSoDuLieuFPTheoThe(ObjTSXFPTheoThe orK, ArrayList<FingerData> objF) {
+        Connection connect = null;
+        PreparedStatement pstmt = null;
+        boolean isSuccess = false;
+        try {
+            String strQuery = "UPDATE info_vid SET fingerData = ? WHERE idVid = ? AND personName = ?";
+            connect = DbUtil.getConnect();
+            pstmt = connect.prepareStatement(strQuery);
+
+            // Thiết lập giá trị cho các tham số từ đối tượng ObjVpass
+            pstmt.setString(1, objF.toString());
+            pstmt.setString(2, orK.thongTinNguoi.idVid);
+            pstmt.setString(3, removeAccent(orK.thongTinNguoi.personName));
+
+
+            // Thực thi câu lệnh
+            int affectedRows = pstmt.executeUpdate();
+
+            // Kiểm tra xem có dòng nào được cập nhật không
+            if (affectedRows > 0) {
+                isSuccess = true;
+            }
+
+            Log.logServices("capNhatCoSoDuLieuFPTheoThe: Đã cập nhật thiết bị có ID = " + pstmt);
+        } catch (Exception Ex) {
+            Log.logServices("capNhatCoSoDuLieuFPTheoThe Exception: " + Ex.getMessage());
+        } finally {
+            // Đóng các tài nguyên
+            try {
+                if (pstmt != null) pstmt.close();
+                if (connect != null) connect.close();
+            } catch (SQLException ex) {
+                Log.logServices("capNhatCoSoDuLieuFPTheoThe SQLException: " + ex.getMessage());
+            }
+        }
+        return isSuccess;
+    }
     public static boolean capNhatCoSoDuLieuFPCuThe(String idVid,String personName, ArrayList<FingerData> objF) {
         Connection connect = null;
         PreparedStatement pstmt = null;
@@ -445,5 +481,84 @@ public class FPDataBase {
             }
         }
         return isSuccess;
+    }
+    public static HashMap<String,String> getGroupInfo(String vID, String personName) {
+        Connection connect = null;
+        PreparedStatement pstmt = null;
+        ResultSet resultSet = null;
+        String groupID = null;
+        HashMap<String,String> hashDiem = new HashMap<>();
+
+        try {
+            connect = DbUtil.getConnect(); // Sử dụng cách kết nối đã được cung cấp trong ví dụ của bạn
+
+            // Lấy groupID từ bảng personofgroup
+            String personOfGroupQuery = "SELECT groupID FROM personofgroup WHERE vID = ? AND personName = ?";
+            pstmt = connect.prepareStatement(personOfGroupQuery);
+            pstmt.setString(1, vID);
+            pstmt.setString(2, personName);
+
+            resultSet = pstmt.executeQuery();
+
+            if (resultSet.next()) {
+                groupID = resultSet.getString("groupID");
+
+                // Đóng pstmt và resultSet để tái sử dụng
+                resultSet.close();
+                pstmt.close();
+
+                // Lấy thông tin từ bảng groupofqr sử dụng groupID
+                String groupOfQrQuery = "SELECT * FROM groupofqr WHERE groupID = ?";
+                pstmt = connect.prepareStatement(groupOfQrQuery);
+                pstmt.setString(1, groupID);
+
+                resultSet = pstmt.executeQuery();
+
+                while (resultSet.next()) {
+                    // Xử lý và hiển thị thông tin từ bảng groupofqr
+                    hashDiem.put(resultSet.getString("idQR"),resultSet.getString("idQR"));
+                }
+            } else {
+                Log.logServices("Không tìm thấy groupID phù hợp với vID và personName.");
+            }
+
+        } catch (SQLException e) {
+            Log.logServices("capNhatCoSoDuLieuFPCuThe SQLException1: " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            try {
+                if (resultSet != null) resultSet.close();
+                if (pstmt != null) pstmt.close();
+                if (connect != null) connect.close();
+            } catch (SQLException ex) {
+                Log.logServices("capNhatCoSoDuLieuFPCuThe SQLException2: " + ex.getMessage());
+                ex.printStackTrace();
+            }
+        }
+        return hashDiem;
+    }
+    public static ObjectInfoVid getidVidFromEmptyID(String emptyID, String idThietBiFP) {
+        ObjectInfoVid item = new ObjectInfoVid();
+        try {
+            String strQuery = "SELECT * FROM info_vid WHERE fingerData LIKE ? AND fingerData LIKE ?";
+            Connection connect = DbUtil.getConnect();
+            PreparedStatement pstmt = connect.prepareStatement(strQuery);
+            // Thiết lập các tham số cho truy vấn dựa trên giá trị emptyID và idThie
+            String emptyIDPattern = "%\"emptyID\":\"" + emptyID + "\"%";
+            String idThiePattern = "%\"idThietBiFP\":\"" + idThietBiFP + "\"%";
+            pstmt.setString(1, emptyIDPattern);
+            pstmt.setString(2, idThiePattern);
+            ResultSet resultSet = pstmt.executeQuery();
+            while (resultSet.next()) { // Kiểm tra nếu có ít nhất một bản ghi tồn tại
+                item.id = resultSet.getString("id");
+                item.idVid = resultSet.getString("idVid");
+                item.hoTen = resultSet.getString("hoTen");
+                item.dienThoai = resultSet.getString("dienThoai");
+            }
+            Log.logServices("getidVidFromEmptyID!" + pstmt);
+        } catch (Exception ex) {
+            Log.logServices("getidVidFromEmptyID Exception" + ex.getMessage());
+        }
+        return item;
     }
 }

@@ -3,6 +3,7 @@ package vn.vimass.service.crawler.bhd;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import vn.vimass.service.BackUp.BackUpControllerDataBaseVer2;
+import vn.vimass.service.BackUp.FingerPrint.Obj.FingerData;
 import vn.vimass.service.crawler.bhd.SendData.SendDataController;
 import vn.vimass.service.crawler.bhd.XuLyXacThuc.DinhDanhXacThuc;
 import vn.vimass.service.entity.*;
@@ -29,6 +30,7 @@ import static vn.vimass.service.BackUp.BackUpControllerDataBase.*;
 import static vn.vimass.service.BackUp.BackUpFunCVer2.goiDenMayHai;
 import static vn.vimass.service.BackUp.BackUpFunction.*;
 import static vn.vimass.service.BackUp.BackUpRoutes.*;
+import static vn.vimass.service.BackUp.FingerPrint.FPFunC.capNhatVanTay;
 
 public class DieuPhoiFunc {
 
@@ -58,19 +60,19 @@ public class DieuPhoiFunc {
         try {
             String id = obj.thoiGianGhiNhan + ServicesData.generateSessionKeyLowestCase(5);
 //            if (cksService.equals(obj.cks)) {
-                ObjecDiaDiemXacThucThanhCong item = getValueObjecDiaDiemXacThucThanhCong(id, obj);
-                System.out.println("ObjecDiaDiemXacThucThanhCong ==========> 2" + item);
-                boolean checkInOut = DinhDanhXacThuc.checkQR(item);
-                String content = "";
-                if(checkInOut){
-                    content = Tool.setBase64("Người dùng được phép ra vào");
-                    result = Tool.setBase64(item.toString());
-                    return geValueResponseMessage1(funcId, 1, content, result);
-                }else{
-                    content = Tool.setBase64("Người dùng không được phép ra vào");
-                    result ="";
-                    return geValueResponseMessage1(funcId, 0, content, result);
-                }
+            ObjecDiaDiemXacThucThanhCong item = getValueObjecDiaDiemXacThucThanhCong(id, obj);
+            System.out.println("ObjecDiaDiemXacThucThanhCong ==========> 2" + item);
+            boolean checkInOut = DinhDanhXacThuc.checkQR(item);
+            String content = "";
+            if (checkInOut) {
+                content = Tool.setBase64("Người dùng được phép ra vào");
+                result = Tool.setBase64(item.toString());
+                return geValueResponseMessage1(funcId, 1, content, result);
+            } else {
+                content = Tool.setBase64("Người dùng không được phép ra vào");
+                result = "";
+                return geValueResponseMessage1(funcId, 0, content, result);
+            }
 //            } else {
 //                System.out.println("funcAuthenticInOut error cks");
 //                return geValueResponseMessage1(funcId, 0, "error cks", "");
@@ -85,7 +87,7 @@ public class DieuPhoiFunc {
 
     private static ObjecDiaDiemXacThucThanhCong getValueObjecDiaDiemXacThucThanhCong(String id, ObjectXacThuc obj) {
         ObjecDiaDiemXacThucThanhCong item = new ObjecDiaDiemXacThucThanhCong();
-        try{
+        try {
             item.id = id;
             item.idQR = obj.idQR;
             item.nameQR = obj.nameQR;
@@ -104,11 +106,10 @@ public class DieuPhoiFunc {
 
 
             Log.logServices("funcAuthenticInOut insert: " + item.toString());
-        }catch (Exception ex){
+        } catch (Exception ex) {
             Log.logServices("getValueObjecDiaDiemXacThucThanhCong Exception: " + ex.getMessage());
 
         }
-
 
 
         return item;
@@ -165,7 +166,7 @@ public class DieuPhoiFunc {
             if (item.idVid != null) {
                 if (!key.equals(item.idVid) && per != item.personPosition) {
                     InforVid.InsertData(list.get(i));
-                    result = VimassData.ContentResult ;
+                    result = VimassData.ContentResult;
                     content = "successfully";
 
                 } else {
@@ -189,9 +190,6 @@ public class DieuPhoiFunc {
     }
 
     public static ResponseMessage1 funcInsertInfoVidOnly(int funcId, String input) {
-//        if(May1){
-//            goiDenMayHai(funcId, input, 2, idDiem);
-//        }
         System.out.println("funcInsertInfoVidOnly: " + input);
         Log.logServices("funcInsertInfoVidOnly: " + input);
         ResponseMessage1 response = new ResponseMessage1();
@@ -199,10 +197,10 @@ public class DieuPhoiFunc {
         try {
             ObjectInfoVid objInfoVid = new Gson().fromJson(input, ObjectInfoVid.class);
             boolean checkFaceDataExist = checkFace(objInfoVid.idVid, objInfoVid.cksFaceOfVid);
-            if(!checkFaceDataExist){
+            if (!checkFaceDataExist) {
                 boolean checkExist = InforVid.checkExist(objInfoVid.idVid, objInfoVid.personName);
                 System.out.println("checkExist: " + checkExist);
-                if(checkExist){
+                if (checkExist) {
                     if (objInfoVid.id != null && !objInfoVid.id.equals("")) {
 
                         if (capNhatVaoInfoVid(objInfoVid)) {
@@ -215,15 +213,19 @@ public class DieuPhoiFunc {
                             response = StatusResponse(2);
                         }
                     }
-                }else{
+                } else {
                     System.out.println("Insert FaceData true");
                     Log.logServices("Insert FaceData true");
                     InforVid.InsertData(objInfoVid);
                     response.result = VimassData.ContentResult;
                     response.msgCode = VimassData.typeResult;
                 }
-            }else{
-                response = StatusResponse(4);
+            } else {
+                response = StatusResponse(1);
+            }
+            if (objInfoVid.fingerData != null && objInfoVid.fingerData.size() > 0) {
+                capNhatVanTay(objInfoVid.idVid, objInfoVid.personName, objInfoVid.fingerData);
+
             }
 
         } catch (Exception ex) {
@@ -233,23 +235,50 @@ public class DieuPhoiFunc {
         return response;
     }
 
-    private static boolean checkFace(String key, String cksFace){
+    public static ResponseMessage1 capNhatDataVanTayVaoDB(int funcId, String input) {
+        Log.logServices("capNhatDataVanTayVaoDB: " + input);
+        ResponseMessage1 res = new ResponseMessage1();
+        res.funcId = funcId;
+        try {
+            ObjectInfoVid requestClient = new Gson().fromJson(input, ObjectInfoVid.class);
+            if (requestClient == null || input == null || input.equals("")) {
+                res = StatusResponse(3);
+            } else {
+                if (capNhatVaoInfoVidVanTay(requestClient)) {
+                    res.msgCode = 1;
+                    res.msgContent = "Success!";
+                } else {
+                    res.msgCode = 2;
+                    res.msgContent = "Unsuccess!";
+                }
+            }
+        } catch (Exception ex) {
+            Log.logServices("capNhatDataVanTayVaoDB Exception: " + ex.getMessage());
+            res = StatusResponse(3);
+        }
+        return res;
+    }
+
+    private static boolean checkFace(String key, String cksFace) {
 
         boolean exist = false;
         ArrayList<ObjectInfoVid> list = InforVid.getlistDataFaceofVid(key);
         String strCheckSum = key;
-        for(ObjectInfoVid item: list){
-            strCheckSum += "_"+item.personName+"_"+item.faceData.substring(0, Math.min(item.faceData.length(), 5));;
+        for (ObjectInfoVid item : list) {
+            strCheckSum += "_" + item.personName + "_" + item.faceData.substring(0, Math.min(item.faceData.length(), 5));
+            ;
         }
-       String checkSum = ServivceCommon.bamMD5(strCheckSum);
-        if(checkSum.equals(cksFace)){
+        String checkSum = ServivceCommon.bamMD5(strCheckSum);
+        if (checkSum.equals(cksFace)) {
             exist = true;
         }
-        Log.logServices("checkFaceDate : "+exist +"\t"+ strCheckSum +"\t"+checkSum +"\t cksFace" +cksFace);
-        System.out.println("checkFaceDate : "+exist+ "\t"+ strCheckSum +"\t"+checkSum +"\t cksFace" +cksFace);
+        Log.logServices("checkFaceDate : " + exist + "\t" + strCheckSum + "\t" + checkSum + "\t cksFace" + cksFace);
+        System.out.println("checkFaceDate : " + exist + "\t" + strCheckSum + "\t" + checkSum + "\t cksFace" + cksFace);
         return exist;
     }
+
     private static boolean exists = false;
+
     private static List<ObjectQr> updateListDiem(String listDiem, String idDiemMoi) {
 
         Type collectionType = new TypeToken<List<ObjectQr>>() {
@@ -332,12 +361,12 @@ public class DieuPhoiFunc {
         ResponseMessage1 res = null;
         try {
             ObjectOffsetLimit objLimit = new Gson().fromJson(input, ObjectOffsetLimit.class);
-            ArrayList<ObjectInfoVid> list = getListInFoVid(objLimit.idQRgreat,objLimit.offset, objLimit.limit, objLimit.textSearch).records;
+            ArrayList<ObjectInfoVid> list = getListInFoVid(objLimit.idQRgreat, objLimit.offset, objLimit.limit, objLimit.textSearch).records;
 
             String result = Tool.setBase64(list.toString());
             String content = "successfully";
             res = geValueResponseMessage1(funcId, 1, content, result);
-        }catch (Exception e){
+        } catch (Exception e) {
             System.out.println("Exception getListInfoVid: " + e.getMessage());
         }
 
@@ -345,14 +374,14 @@ public class DieuPhoiFunc {
     }
 
     public static ResponseMessage1 getListInfoVidLimit(int funcId, String input) {
-        if(May1){
+        if (May1) {
             goiDenMayHai(funcId, input, 2, "");
         }
         ResponseMessage1 res = new ResponseMessage1();
         res.funcId = 10601;
         try {
             ObjectOffsetLimit objLimit = new Gson().fromJson(input, ObjectOffsetLimit.class);
-            ObjectRecordsAndTotalObjectInfoVid obj = getListInFoVid(objLimit.idQRgreat ,objLimit.offset, objLimit.limit, objLimit.textSearch);
+            ObjectRecordsAndTotalObjectInfoVid obj = getListInFoVid(objLimit.idQRgreat, objLimit.offset, objLimit.limit, objLimit.textSearch);
             ArrayList<ObjectInfoVid> list = obj.records;
             String result = Tool.setBase64(list.toString());
 
@@ -368,13 +397,13 @@ public class DieuPhoiFunc {
         return res;
     }
 
-    private static ObjectRecordsAndTotalObjectInfoVid getListInFoVid(String idQR,int offset, int limit, String key) {
+    private static ObjectRecordsAndTotalObjectInfoVid getListInFoVid(String idQR, int offset, int limit, String key) {
         ObjectRecordsAndTotalObjectInfoVid obj = null;
         try {
             obj = getRecordsAndTotalinfo_vid(idQR, limit, offset, key);
             return obj;
         } catch (Exception ex) {
-           // ObjectRecordsAndTotalObjectInfoVid obj = getRecordsAndTotalinfo_vid(limit, offset,  key);
+            // ObjectRecordsAndTotalObjectInfoVid obj = getRecordsAndTotalinfo_vid(limit, offset,  key);
             Log.logServices("getListInFoVid Exception: " + ex.getMessage());
         }
         return obj;
@@ -397,7 +426,7 @@ public class DieuPhoiFunc {
         String result = Tool.setBase64(item.toString());
         Log.logServices("getDetail aesEncrypt : " + result);
         String content = "successfully";
-      //  ResponseMessage1 res = geValueResponseMessage1(funcId, 1, content, result);
+        //  ResponseMessage1 res = geValueResponseMessage1(funcId, 1, content, result);
         item.result = Tool.setBase64(item.toString());
         return item;
     }
@@ -436,9 +465,10 @@ public class DieuPhoiFunc {
         item.result = Tool.setBase64(item.result.toString());
         return item;
     }
+
     //---------------Dich thiet lap dieu khien khoa cua Vpass--------------------
     public static ResponseMessage1 ControllerVpass(int funcId, String input) {
-        if(May1){
+        if (May1) {
             goiDenMayHai(funcId, input, 2, "");
         }
         Log.logServices("getbase64 ControllerVpass input : " + input);
@@ -462,7 +492,7 @@ public class DieuPhoiFunc {
     }
 
     public static ResponseMessage1 listControllerVpass(int funcId) {
-        if(May1){
+        if (May1) {
             goiDenMayHai(funcId, "", 2, "");
         }
         List<ObjectControllerVpass> list = ControllerVpass.getListVpassControllerVpass();

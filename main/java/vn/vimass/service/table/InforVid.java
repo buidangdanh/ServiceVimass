@@ -2,6 +2,8 @@ package vn.vimass.service.table;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import vn.vimass.service.BackUp.FingerPrint.Obj.FingerData;
+import vn.vimass.service.BackUp.FingerPrint.Obj.ObjFP;
 import vn.vimass.service.crawler.bhd.XuLyLayKhuonMat.ObjecFace;
 import vn.vimass.service.crawler.bhd.XuLyLayKhuonMat.ObjectFaceOfVid;
 import vn.vimass.service.entity.ObjectRecordsAndTotalObjectInfoVid;
@@ -51,6 +53,7 @@ public class InforVid {
     public static final String personName="personName";
     public static final String chucDanh="chucDanh";
     public static final String personPosition="personPosition";
+    public static final String fingerData="fingerData";
     public static final String mcID="mcID";
 
     public static PreparedStatement pstmt = null;
@@ -340,6 +343,8 @@ public class InforVid {
             item.personName = resultSet.getString(personName);
             item.chucDanh = resultSet.getString(chucDanh);
             item.personPosition = resultSet.getInt(personPosition);
+            item.fingerData = new Gson().fromJson(resultSet.getString(fingerData), new TypeToken<ArrayList<FingerData>>() {
+            }.getType()); ;
 //            item.idQR = resultSet.getString("idQR");
 //            item.groupID = resultSet.getString("groupID");
         }
@@ -384,13 +389,13 @@ public class InforVid {
         try {
             String condition = getCondition(idQR);
             if(limit > 0) {
-                strQuery += "SELECT tb3.id,tb3.hoTen, tb1.chucDanh, tb3.uID, tb3.idVid, tb3.personPosition,tb1.userName,tb3.faceData, tb1.groupID\n" +
+                strQuery += "SELECT tb3.id,tb3.hoTen, tb1.chucDanh, tb3.uID, tb3.vID, tb3.personPosition,tb1.userName,tb3.faceData, tb1.groupID\n" +
                         "FROM " + PersonOfGroup.TABLE_NAME + " AS tb1\n" +
                         "INNER JOIN " + TABLE_NAME + " AS tb3 ON tb1.personName = tb3.personName\n" +
                         "WHERE (" + condition + ")" +
                         " GROUP BY tb1.id limit " + limit + " offset " + offset + ";";
             }else if(limit == 0 && offset == 0){
-                strQuery += "SELECT tb3.id,tb3.hoTen, tb1.chucDanh, tb3.uID, tb3.idVid, tb3.personPosition,tb1.userName,tb3.faceData, tb1.groupID\n" +
+                strQuery += "SELECT tb3.id,tb3.hoTen, tb1.chucDanh, tb3.uID, tb3.vID, tb3.personPosition,tb1.userName,tb3.faceData, tb1.groupID\n" +
                         "FROM "+PersonOfGroup.TABLE_NAME+" AS tb1\n" +
                         "INNER JOIN "+TABLE_NAME+" AS tb3 ON tb1.personName = tb3.personName\n" +
                         "WHERE ("+condition+")"+

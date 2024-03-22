@@ -1,10 +1,7 @@
 package vn.vimass.service.BackUp.FingerPrint;
 
 import java.text.Normalizer;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -17,13 +14,17 @@ import com.fazecast.jSerialComm.SerialPortEvent;
 import com.google.gson.Gson;
 import vn.vimass.service.BackUp.FingerPrint.Obj.*;
 import vn.vimass.service.crawler.bhd.Tool;
+import vn.vimass.service.entity.ResponseIP;
 import vn.vimass.service.entity.ResponseMessage;
 import vn.vimass.service.entity.ResponseMessage1;
 import vn.vimass.service.log.Log;
 import vn.vimass.service.table.NhomThietBiDiem.entity.ListDiem;
+import vn.vimass.service.table.NhomThietBiDiem.entity.ObjVpass;
 import vn.vimass.service.table.object.ObjectFPRequest;
 import vn.vimass.service.utils.ServivceCommon;
 
+import static vn.vimass.service.BackUp.BackUpFunction.StatusResponse;
+import static vn.vimass.service.BackUp.BackUpFunction.urlMay2;
 import static vn.vimass.service.BackUp.FingerPrint.FPComandPacket.*;
 import static vn.vimass.service.BackUp.FingerPrint.FPDataBase.*;
 import static vn.vimass.service.BackUp.FingerPrint.FPDataBase.capNhatCoSoDuLieuFPCuThe;
@@ -163,7 +164,7 @@ public class FPFunC {
 
     private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
 
-    private static byte[] hexStringToByteArray(String s) {
+    public static byte[] hexStringToByteArray(String s) {
         if (s.indexOf(" ") > -1) {
             s = s.replaceAll(" ", "");
         }
@@ -178,7 +179,7 @@ public class FPFunC {
         return data;
     }
 
-    private static String bytesToHex(byte[] bytes) {
+    public static String bytesToHex(byte[] bytes) {
         char[] hexChars = new char[bytes.length * 2];
         for (int j = 0; j < bytes.length; j++) {
             int v = bytes[j] & 0xFF;
@@ -233,7 +234,48 @@ public class FPFunC {
         return reversedHex.toString();
     }
 
-    private static String sendData2(SerialPort port, String hexString, int timeOut, int timeChoKetNoi) {
+    private static String sendData2(SerialPort port, String hexString, int timeChoKetNoi) {
+        AtomicReference<String> res = new AtomicReference<>(""); // Use AtomicReference
+        try {
+            if (port.openPort()) {
+                Log.logServices("Successfully opened the port.");
+                port.setComPortParameters(115200, 8, 1, SerialPort.NO_PARITY);
+                try {
+                    Thread.sleep(timeChoKetNoi);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                byte[] dataToSend = hexStringToByteArray(hexString);
+                port.writeBytes(dataToSend, dataToSend.length);
+
+                port.addDataListener(new SerialPortDataListener() {
+                    @Override
+                    public int getListeningEvents() {
+                        return SerialPort.LISTENING_EVENT_DATA_AVAILABLE;
+                    }
+
+                    @Override
+                    public void serialEvent(SerialPortEvent event) {
+                        if (event.getEventType() == SerialPort.LISTENING_EVENT_DATA_AVAILABLE) {
+                            byte[] newData = new byte[port.bytesAvailable()];
+                            int numRead = port.readBytes(newData, newData.length);
+                            Log.logServices("Read " + numRead + " bytes.");
+                            bytesToHex(newData);
+                        }
+                    }
+                });
+                port.closePort();
+                System.out.println("Port closed.");
+            } else {
+                System.out.println("Unable to open the port.");
+            }
+        } catch (Exception ex) {
+            Log.logServices("sendDataToSerialPort Exception!" + ex.getMessage());
+        }
+        return res.get(); // Return the accumulated result
+    }
+
+    private static String sendData2Goc(SerialPort port, String hexString, int timeOut, int timeChoKetNoi) {
         AtomicReference<String> res = new AtomicReference<>(""); // Use AtomicReference
         try {
             if (port.openPort()) {
@@ -302,6 +344,7 @@ public class FPFunC {
                 port.closePort();
                 return bytesToHex2(readBuffer, numRead); // Chuyển dữ liệu nhận được thành hex string
             } else {
+                Log.logServices("Unable to open the port.");
                 System.out.println("Unable to open the port.");
                 return null;
             }
@@ -355,10 +398,13 @@ public class FPFunC {
             if (kqF != null && !kqF.equals("")) {
                 if (kqF.equals("2")) {
                     res.msgCode = 2;
-                    res.msgContent = Tool.setBase64("Vân tay không rõ hoặc đã tồn tại");
+                    res.msgContent = Tool.setBase64("Vân tay đã tồn tại");
                 } else if (kqF.equals("3")) {
                     res.msgCode = 2;
                     res.msgContent = Tool.setBase64("Vượt thời gian đặt vân tay");
+                } else if (kqF.equals("4")) {
+                    res.msgCode = 2;
+                    res.msgContent = Tool.setBase64("Không cùng một vân tay");
                 } else {
                     fp = themVaoDBFP(orK, kqF, arrF);
                     if (fp != null) {
@@ -371,22 +417,93 @@ public class FPFunC {
 
         } catch (Exception ex) {
             Log.logServices("dangKyVanTay Exception!" + ex.getMessage());
+            res.msgCode = 2;
+            res.msgContent = Tool.setBase64("Vượt thời gian đặt vân tay");
+        }
+        return res;
+    }
+
+    public static ResponseMessage1 dangKyVanTayTheoThe(ObjTSXFPTheoThe requestClient, String COM, ArrayList<FingerData> dataVanTayHienCo) {
+        ResponseMessage1 res = new ResponseMessage1();
+        res.funcId = 128;
+        HashMap<String, FingerData> hashVanTayMini = new HashMap<>();
+        try {
+            if (dataVanTayHienCo != null && dataVanTayHienCo.size() > 0) {
+                for (FingerData arrVanTayMini : dataVanTayHienCo) {
+                    hashVanTayMini.put(arrVanTayMini.data, arrVanTayMini);
+                }
+            }
+            Log.logServices("dangKyVanTayTheoThe dataVanTayHienCo!" + dataVanTayHienCo.toString());
+            for (FingerData dataVanTayThe : requestClient.vanTayThe) {
+                if (hashVanTayMini != null && hashVanTayMini.size() > 0) {
+                    Log.logServices("hashVanTayMini co phan tu!" + hashVanTayMini.toString());
+
+                    if (hashVanTayMini.containsKey(dataVanTayThe.data) && hashVanTayMini.get(dataVanTayThe.data).idThietBiFP.equals(requestClient.idFP)) {
+                        res.msgCode = 1;
+                        res.msgContent = "Success!";
+                    } else {
+                        if (dangKyVanTayTheoTheThemVaoDB(dataVanTayThe, COM, dataVanTayHienCo, requestClient)) {
+                            res.msgCode = 1;
+                            res.msgContent = "Success!";
+                        } else {
+                            res.msgCode = 2;
+                            res.msgContent = "Unsuccess!";
+                        }
+                    }
+                } else {
+
+
+                    if (dangKyVanTayTheoTheThemVaoDB(dataVanTayThe, COM, dataVanTayHienCo, requestClient)) {
+                        res.msgCode = 1;
+                        res.msgContent = "Success!";
+                    } else {
+                        res.msgCode = 2;
+                        res.msgContent = "Unsuccess!";
+                    }
+                }
+            }
+
+        } catch (Exception ex) {
+            Log.logServices("dangKyVanTayTheoThe Exception!" + ex.getMessage());
 
         }
         return res;
+    }
+
+    private static boolean dangKyVanTayTheoTheThemVaoDB(FingerData dataVanTayThe, String COM, ArrayList<FingerData> dataVanTayHienCo, ObjTSXFPTheoThe requestClient) {
+        boolean kq = false;
+        try {
+            String kqThemVanTay = themVanTayVaoFPFunC(dataVanTayThe.data, COM, dataVanTayHienCo);
+            if (kqThemVanTay != null && !kqThemVanTay.equals("")) {
+                Log.logServices("dangKyVanTayTheoTheThemVaoDB COM! " + COM);
+
+                FingerData fp = new FingerData();
+                fp.emptyID = kqThemVanTay.toUpperCase();
+                fp.idThietBiFP = requestClient.idFP;
+                fp.name = dataVanTayThe.name;
+                fp.data = dataVanTayThe.data;
+                dataVanTayHienCo.add(fp);
+                capNhatCoSoDuLieuFPTheoThe(requestClient, dataVanTayHienCo);
+                kq = true;
+            }
+        } catch (Exception ex) {
+            Log.logServices("dangKyVanTayTheoTheThemVaoDB Exception!" + ex.getMessage());
+
+        }
+        return kq;
     }
 
     private static FingerData themVaoDBFP(ObjThemSuaXoaRQ orK, String kqFData, ArrayList<FingerData> arrF) {
         FingerData fp = new FingerData();
         try {
             if (arrF == null || (arrF != null && arrF.size() < 4)) {
-                fp.emptyID = kqFData.split("-")[0];
+                fp.emptyID = kqFData.split("-")[0].toUpperCase();
                 fp.idThietBiFP = orK.idFP;
                 fp.name = orK.nameFP;
-                fp.data = kqFData.split("-")[1];
+                fp.data = kqFData.split("-")[1].toUpperCase();
             }
             arrF.add(fp);
-            capNhatCoSoDuLieuFP(orK, arrF);
+            //capNhatCoSoDuLieuFP(orK, arrF);
 
         } catch (Exception ex) {
             Log.logServices("themVaoDBFP Exception!" + ex.getMessage());
@@ -403,9 +520,172 @@ public class FPFunC {
         String value = "";
         try {
             Log.logServices("layValueVanTay COM " + COM);
+            Thread.sleep(300);
+            sendData(SerialPort.getCommPort(COM), identifyFree(FP_Cancel), 1);
+            //emtyID = sendData(SerialPort.getCommPort(COM), getEmptyID(), 100).substring(16, 20);
+            emtyID = chuyenSoThanhChu(999);
+            Log.logServices("layValueVanTay emtyID " + emtyID);
+            kq = layGiaTriVanTay(SerialPort.getCommPort(COM), emtyID);
+            if (kq != null && !kq.equals("")) {
+                Log.logServices("layValueVanTay enrol " + kq);
+                if (kq.length() > 95) {
+                    String resCM1 = kq.substring(64, 68);
+                    if (resCM1.equals("2300")) {
+                        kqFinal = "3";
+                    } else {
+                        if (kq.length() > 192) {
+                            resCM1 = kq.substring(208, 212);
+                            String resCM2 = kq.substring(204, 208);
+                            if (resCM1.equals("1900") && resCM2.equals("0100")) {
+                                kqFinal = "2";
+                            } else if (resCM1.equals("2300") && resCM2.equals("0100")) {
+                                kqFinal = "3";
+                            } else if (resCM1.equals("3000") && resCM2.equals("0100")) {
+                                kqFinal = "4";
+                            } else if (resCM2.equals("0000")) {
+                                kqFinal = emtyID + "-" + sendData(SerialPort.getCommPort(COM), readTemp(emtyID), 1000).substring(68, 1064);
+                                Log.logServices("dangKyVanTay readtemp " + kqFinal);
+                                Thread.sleep(1000);
+                                sendData(SerialPort.getCommPort(COM), clearTemp(emtyID), 1000);
+                            }
+                        } else {
+                            kqFinal = "3";
+                        }
+                    }
+                }else {
+                    kqFinal = "3";
+                }
+            } else if (kq.equals("aa5513010400000000000000000000000000000000001701")) {
+                kqFinal = "3";
+            } else {
+                kqFinal = "3";
+            }
+        } catch (Exception ex) {
+            kqFinal = "3";
+            Log.logServices("layValueVanTay Exception!" + ex.getMessage());
+        }
+        return kqFinal;
+
+    }
+
+    public static String themVanTayVaoFPFunC(String dataVanTayThe, String COM, ArrayList<FingerData> arrF) {
+        boolean kq = false;
+        String kqFinal = "";
+        String emtyID = "";
+        String value = "";
+        try {
+            Log.logServices("themVanTayVaoFP COM " + COM);
+            Thread.sleep(300);
+            sendData(SerialPort.getCommPort(COM), identifyFree(FP_Cancel), 1);
+            emtyID = sendData(SerialPort.getCommPort(COM), getEmptyID(), 100).substring(16, 20);
+            Log.logServices("themVanTayVaoFP emtyID " + emtyID);
+            kq = commandThemVanTayVaoThe(SerialPort.getCommPort(COM), emtyID, dataVanTayThe, arrF);
+            if (kq) {
+                kqFinal = emtyID;
+            }
+        } catch (Exception ex) {
+            Log.logServices("themVanTayVaoFP Exception!" + ex.getMessage());
+        }
+        return kqFinal;
+    }
+
+    private static String layValueVanTayGosc(String COM) {
+        String kqFinal = "";
+        String emtyID = "";
+        String kq = "";
+        String value = "";
+        try {
+            Log.logServices("layValueVanTay COM " + COM);
+            Thread.sleep(300);
+            sendData(SerialPort.getCommPort(COM), identifyFree(FP_Cancel), 1);
+            emtyID = sendData(SerialPort.getCommPort(COM), getEmptyID(), 100).substring(16, 20);
+            Log.logServices("layValueVanTay emtyID " + emtyID);
+            kq = layGiaTriVanTay(SerialPort.getCommPort(COM), emtyID);
+            if (kq != null && !kq.equals("")) {
+                Log.logServices("layValueVanTay enrol " + kq);
+                if (kq.length() > 95) {
+                    String resCM1 = kq.substring(64, 68);
+                    if (resCM1.equals("2300")) {
+                        kqFinal = "3";
+                    } else {
+                        if (kq.length() > 192) {
+                            resCM1 = kq.substring(208, 212);
+                            String resCM2 = kq.substring(204, 208);
+                            if (resCM1.equals("1900") && resCM2.equals("0100")) {
+                                kqFinal = "2";
+                            } else if (resCM1.equals("2300") && resCM2.equals("0100")) {
+                                kqFinal = "3";
+                            } else if (resCM1.equals("3000") && resCM2.equals("0100")) {
+                                kqFinal = "4";
+                            } else if (resCM2.equals("0000")) {
+                                kqFinal = emtyID + "-" + sendData(SerialPort.getCommPort(COM), readTemp(emtyID), 1000).substring(68, 1064);
+                                Log.logServices("dangKyVanTay readtemp " + kqFinal);
+                            }
+                        } else {
+                            kqFinal = "3";
+                        }
+                    }
+                }
+            } else if (kq.equals("aa5513010400000000000000000000000000000000001701")) {
+                kqFinal = "3";
+            } else {
+                kqFinal = "3";
+            }
+        } catch (Exception ex) {
+            Log.logServices("layValueVanTay Exception!" + ex.getMessage());
+        }
+        return kqFinal;
+
+
+    }
+
+    private static String layGiaTriVanTay(SerialPort COM, String emtyID) {
+        String kq = "";
+        try {
+            for (int i = 0; i < 4; i++) {
+                kq = sendData(COM, fingerDetect(emtyID), 1000);
+                if (kq != null && kq.substring(16, 20).equals("0100")) {
+                    kq = sendData(COM, registeredInstruction(emtyID), 7000);
+                    break;
+                }
+            }
+        } catch (Exception ex) {
+            Log.logServices("layGiaTriVanTay Exception!" + ex.getMessage());
+
+        }
+        return kq;
+    }
+
+    private static boolean commandThemVanTayVaoThe(SerialPort COM, String emtyID, String dataVanTayThe, ArrayList<FingerData> arrF) {
+        boolean kq = false;
+        try {
+            sendData(COM, writeTemplate(0, emtyID, dataVanTayThe), 500);
+            String kqGhi = sendData(COM, writeTemplate(1, emtyID, dataVanTayThe), 1000);
+            if (kqGhi != null && !kqGhi.equals("")) {
+                String resCMD1 = kqGhi.substring(12, 16);
+                String resCMD2 = kqGhi.substring(16, 20);
+                if (resCMD1.equals("0000") && resCMD2.equals(emtyID)) {
+                    kq = true;
+                }
+            }
+
+        } catch (Exception ex) {
+            Log.logServices("layGiaTriVanTay Exception!" + ex.getMessage());
+
+        }
+        return kq;
+    }
+
+    private static String layValueVanTayGoc(String COM) {
+        String kqFinal = "";
+        String emtyID = "";
+        String kq = "";
+        String value = "";
+        try {
+            Log.logServices("layValueVanTay COM " + COM);
 
             sendData(SerialPort.getCommPort(COM), identifyFree(FP_Cancel), 1);
-            NhayDen(COM);
+            //NhayDen(COM);
             emtyID = sendData(SerialPort.getCommPort(COM), getEmptyID(), 100).substring(16, 20);
             kq = sendData(SerialPort.getCommPort(COM), enrollOneTime(emtyID), 5000);
             if (kq != null && !kq.equals("")) {
@@ -682,7 +962,7 @@ public class FPFunC {
             for (SerialPort port : ports) {
                 if (port.getDescriptivePortName() != null && port.getDescriptivePortName().contains("USB Serial Port")) {
                     String t = sendData(SerialPort.getCommPort(port.getSystemPortName()), "55 AA 11 01 00 00 0200 00 00 00 00 00 00 00 00 00 00 00 00 00 001301", 100);
-                    if(t!=null){
+                    if (t != null) {
                         for (ObjFP obj : arrayList) {
                             if (obj.idDonVi.equals(t.substring(16, 20))) {
                                 capNhatPortVanTayDB(port.getSystemPortName(), t.substring(16, 20));
@@ -715,10 +995,87 @@ public class FPFunC {
 
         }
     }
+
     public static String removeAccent(String input) {
         String temp = Normalizer.normalize(input, Normalizer.Form.NFD);
         Pattern pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
         return pattern.matcher(temp).replaceAll("").replaceAll("Đ", "D").replaceAll("đ", "d");
+    }
+
+    public static void capNhatVanTay(String idVid, String perName, ArrayList<FingerData> fingerData) {
+        HashMap<String, String> hashDiem = new HashMap<>();
+        ArrayList<ObjFP> listFPLocal = new ArrayList<>();
+        HashMap<String, ObjVpass> hashMayTinh = new HashMap<>();
+        try {
+            hashDiem = getGroupInfo(idVid, removeAccent(perName));
+            listFPLocal = getThietBiFP();
+            if (listFPLocal != null) {
+                for (ObjFP vanTayHienCo : listFPLocal) {
+                    if (hashDiem.containsKey(vanTayHienCo.listDiem.get(0).id)) {
+                        hashMayTinh.put(vanTayHienCo.id, vanTayHienCo.deviceV);
+                    }
+                }
+                if (hashMayTinh != null && hashMayTinh.size() > 0) {
+                    for (Map.Entry<String, ObjVpass> entry : hashMayTinh.entrySet()) {
+                        goiDenMayChuQuanLy(idVid, perName, entry.getKey(), fingerData, entry.getValue().ip);
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            Log.logServices("capNhatVanTay" + ex.getMessage());
+
+        }
+
+
+    }
+
+    private static void goiDenMayChuQuanLy(String idVid, String personName, String idFP, ArrayList<FingerData> vanTayThe, String urlMayChu) {
+        try {
+            ObjectFPRequest objectFPRequest = new ObjectFPRequest();
+            objectFPRequest.idVid = idVid;
+            objectFPRequest.personName = personName;
+
+            ObjTSXFPTheoThe objTSXFPTheoThe = new ObjTSXFPTheoThe();
+            objTSXFPTheoThe.type = 1;
+            objTSXFPTheoThe.thongTinNguoi = objectFPRequest;
+            objTSXFPTheoThe.idFP = idFP;
+            objTSXFPTheoThe.vanTayThe = vanTayThe;
+
+            ResponseIP objRequest = new ResponseIP();
+            objRequest.funcId = 128;
+            objRequest.currentime = new Date().getTime();
+            objRequest.device = 3;
+            objRequest.data = objTSXFPTheoThe.toString();
+            objRequest.listIdDiem = "[]";
+            String url = "http://" + urlMayChu + ":58080/autobank/services/vimassTool/dieuPhoi";
+
+            String kq = PostREST(url, new Gson().toJson(objRequest));
+            Log.logServices("request goiDenMayChuQuanLy" + new Gson().toJson(objRequest));
+            Log.logServices("response goiDenMayChuQuanLy : " + url + "-" + kq);
+        } catch (Exception ex) {
+            Log.logServices("goiDenMayChuQuanLy Exception!" + ex.getMessage());
+
+        }
+    }
+    public static String hexStringRaID(String hexString) {
+        String kq = "";
+        try {
+            int partLength = 48; // Độ dài mỗi phần là 24 byte, tương đương 48 ký tự hex
+
+            // Tính số phần có thể có
+            int numOfParts = hexString.length() / partLength;
+            String chuoiSoSanh = "";
+            for (int i = 0; i < numOfParts; i++) {
+                String part = hexString.substring(i * partLength, (i + 1) * partLength);
+                if (part.indexOf("F4FF") == -1) {
+                    kq = part.substring(16, 20);
+                }
+            }
+
+        } catch (Exception ex) {
+            Log.logServices("hexStringRaID Exception: " + ex.getMessage());
+        }
+        return kq;
     }
 
 

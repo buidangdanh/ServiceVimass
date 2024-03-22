@@ -39,6 +39,9 @@ public class DieuPhoiController {
             case 10502:// dich vu update thong tin cua the
                 res = DieuPhoiFunc.funcInsertInfoVidOnly(funcId, data);
                 break;
+            case 10503:// dich vu update thong tin cua the
+                res = DieuPhoiFunc.capNhatDataVanTayVaoDB(funcId, data);
+                break;
 
             case 106:// dich vu lay danh sach thong tin cua the duoc ra vao tai diem
                 res = DieuPhoiFunc.getListInfoVid(funcId, data);
@@ -155,8 +158,14 @@ public class DieuPhoiController {
             case 126:// lay danh sach thiet bị vpass
                 res = FPRoutes.trangThaiFP(data);
                 break;
-            case 127:// lay danh sach thiet bị vpass
+            case 127:// lay them sua xoa van tay
                 res = FPRoutes.themSuaXoaFP(funcId,time,data);
+                break;
+            case 128:// lay them sua xoa van tay theo the
+                res = FPRoutes.themSuaXoaFPTheoThe(funcId,time,data);
+                break;
+            case 129:// lay them sua xoa van tay theo the
+                res = FPRoutes.XacThuc(funcId,time,data);
                 break;
             default:
                 Log.logServices("post Dieu PHOI input:");

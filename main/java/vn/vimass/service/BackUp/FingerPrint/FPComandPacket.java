@@ -66,7 +66,18 @@ public class FPComandPacket {
     public static String enrollOneTime(String emptyID) {
         String hexSFinal = "";
         try {
-            String hexS = "55 AA 04 01 02 00 " + emptyID + "00 00 00 00 00 00 00 00 00 00 00 00 00 00 ";
+            String hexS = "55 AA 04 01 02 00 " + emptyID + " 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ";
+            hexSFinal = hexS + tinhCks(hexS);
+        } catch (Exception e) {
+            Log.logServices("enrollOneTime Exception!" + e.getMessage());
+
+        }
+        return hexSFinal;
+    }
+    public static String registeredInstruction(String emptyID) {
+        String hexSFinal = "";
+        try {
+            String hexS = "55 AA 03 01 02 00 " + emptyID + " 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ";
             hexSFinal = hexS + tinhCks(hexS);
         } catch (Exception e) {
             Log.logServices("enrollOneTime Exception!" + e.getMessage());
@@ -92,6 +103,35 @@ public class FPComandPacket {
             hexSFinal = hexS + tinhCks(hexS);
         } catch (Exception e) {
             Log.logServices("clearTemp Exception!" + e.getMessage());
+
+        }
+        return hexSFinal;
+    }
+    public static String fingerDetect(String tempNo) {
+        String hexSFinal = "";
+        try {
+            String hexS = "55 AA 13 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 13 01";
+            hexSFinal = hexS;
+        } catch (Exception e) {
+            Log.logServices("fingerDetect Exception!" + e.getMessage());
+
+        }
+        return hexSFinal;
+    }
+    public static String writeTemplate(int type, String emptyID, String dataFP) {
+        String hexSFinal = "";
+        String hexS = "";
+        try {
+            if(type==0){
+                hexS = "55 AA 0B 01 02 00 F2 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 ";
+                hexSFinal =hexS;
+            }else {
+                hexS = "5A A5 0B 01 F4 01 "+emptyID+" "+ dataFP;
+                hexSFinal = hexS + tinhCks(hexS);
+            }
+
+        } catch (Exception e) {
+            Log.logServices("enrollOneTime Exception!" + e.getMessage());
 
         }
         return hexSFinal;

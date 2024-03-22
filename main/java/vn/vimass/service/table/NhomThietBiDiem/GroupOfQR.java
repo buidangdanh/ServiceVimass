@@ -60,7 +60,6 @@ public class GroupOfQR {
                     + ");";
 
             connect = DbUtil.getConnect();
-            pstmt = (PreparedStatement) connect.prepareStatement(strSqlInsert);
             pstmt = connect.prepareStatement(strSqlInsert);
             Log.logServices("executeUpdate ObjectGroupOfQR: " + pstmt);
            // System.out.println(" executeUpdate ObjectGroupOfQR =====> " +pstmt);
@@ -177,7 +176,6 @@ public class GroupOfQR {
 
             connect =  DbUtil.getConnect();
 
-            pstmt = (PreparedStatement) connect.prepareStatement(strSqlInsert);
             pstmt = connect.prepareStatement(strSqlInsert);
             Log.logServices("executeUpdate ObjectGroupOfQR: " + pstmt);
 

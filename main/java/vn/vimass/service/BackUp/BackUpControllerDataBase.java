@@ -28,6 +28,7 @@ import java.util.concurrent.*;
 
 import static vn.vimass.service.BackUp.BackUpFunction.getThietBiVpass;
 import static vn.vimass.service.BackUp.BackUpFunction.tongThoiGian;
+import static vn.vimass.service.BackUp.FingerPrint.FPFunC.capNhatVanTay;
 
 public class BackUpControllerDataBase {
 
@@ -1458,9 +1459,7 @@ public class BackUpControllerDataBase {
     }
 
     public static boolean capNhatVaoInfoVid(ObjectInfoVid objectInfoVid) {
-
-
-        String strSqlUpdate = "UPDATE info_vid SET uID = ?, maSoThue = ?, diaChi = ?, dienThoai = ?, email = ?, gioiTinh = ?, hoTen = ?, ngayCapCCCD = ?, ngaySinh = ?, quocTich = ?, soCanCuoc = ?, soTheBHYT = ?, tk = ?, anhDaiDien = ?, anhCMNDMatTruoc = ?, anhCMNDMatSau = ?, faceData = ?, personName = ?, chucDanh = ?, personPosition = ? " +
+        String strSqlUpdate = "UPDATE info_vid SET uID = ?, maSoThue = ?, diaChi = ?, dienThoai = ?, email = ?, gioiTinh = ?, hoTen = ?, ngayCapCCCD = ?, ngaySinh = ?, quocTich = ?, soCanCuoc = ?, soTheBHYT = ?, tk = ?, anhDaiDien = ?, anhCMNDMatTruoc = ?, anhCMNDMatSau = ?, faceData = ?, personName = ?, chucDanh = ?, personPosition = ?" +
                 "WHERE idVid = ? AND personName = ?";
 
         boolean isSuccess = false;
@@ -1510,6 +1509,43 @@ public class BackUpControllerDataBase {
         }
         return isSuccess;
     }
+    public static boolean capNhatVaoInfoVidVanTay(ObjectInfoVid objectInfoVid) {
+        String strSqlUpdate = "UPDATE info_vid SET fingerData = ? " +
+                "WHERE idVid = ? AND personName = ?";
+
+        boolean isSuccess = false;
+        try {
+            Connection connect = null;
+            connect = DbUtil.getConnect(); // Giả sử bạn có phương thức này để lấy kết nối
+
+            PreparedStatement pstmt = connect.prepareStatement(strSqlUpdate);
+            pstmt.setString(1, objectInfoVid.fingerData.toString());
+            pstmt.setString(2, objectInfoVid.idVid);
+            pstmt.setString(3, objectInfoVid.personName);
+
+            int result = pstmt.executeUpdate();
+            Log.logServices("capNhatVaoInfoVidVanTay strSqlUpdate: " + pstmt);
+
+            if (result > 0) {
+                Log.logServices("ROW UPDATED");
+                isSuccess = true;
+                Log.logServices("capNhatVaoInfoVidVanTay thành công: ");
+                if(objectInfoVid.fingerData!=null&&objectInfoVid.fingerData.size()>0){
+                    capNhatVanTay(objectInfoVid.idVid,objectInfoVid.personName,objectInfoVid.fingerData);
+                }
+                SendDataController.SendData(101,objectInfoVid.toString(),objectInfoVid.personName );
+            } else {
+                Log.logServices("ROW NOT UPDATED");
+                Log.logServices("capNhatVaoInfoVidVanTay không thành công: ");
+            }
+        } catch (SQLException e) {
+            Log.logServices("capNhatVaoInfoVidVanTay catch: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return isSuccess;
+    }
+
+
 
     public static ObjectRecordsAndTotalObjectInfoVid getRecordsAndTotalinfo_vid(String idQR, int limit, int offset, String key) {  // added vID parameter
         ArrayList<ObjectInfoVid> records = new ArrayList<>();
