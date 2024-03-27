@@ -2,10 +2,8 @@ package vn.vimass.service.crawler.bhd;
 
 import vn.vimass.service.BackUp.BackUpRoutes;
 import vn.vimass.service.BackUp.BackUpRoutesVer2;
-import vn.vimass.service.BackUp.FingerPrint.FPFunC;
 import vn.vimass.service.BackUp.FingerPrint.FPRoutes;
 import vn.vimass.service.crawler.bhd.DongBoVsServer.DongBoController;
-import vn.vimass.service.crawler.bhd.DongBoVsServer.DongBoDiemRaVaoController;
 import vn.vimass.service.crawler.bhd.DongBoVsServer.SendDataFaceToDevice;
 import vn.vimass.service.crawler.bhd.XuLyLayKhuonMat.LayKhuonMatController;
 import vn.vimass.service.crawler.bhd.thongke.ThongKeController;
@@ -166,6 +164,12 @@ public class DieuPhoiController {
                 break;
             case 129:// lay them sua xoa van tay theo the
                 res = FPRoutes.XacThuc(funcId,time,data);
+                break;
+            case 130:// thiet bi van tay them sua xoa
+                res = FPRoutes.themSuaXoaTBFP(funcId,time,data);
+                break;
+            case 131:// thiet bi van tay lay ve
+                res = FPRoutes.layThietBiVanTay(funcId,time,data);
                 break;
             default:
                 Log.logServices("post Dieu PHOI input:");

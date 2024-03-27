@@ -9,6 +9,7 @@ import vn.vimass.service.crawler.bhd.Tool;
 import vn.vimass.service.entity.ResponseIP;
 import vn.vimass.service.entity.ResponseMessage1;
 import vn.vimass.service.log.Log;
+import vn.vimass.service.log.ServicesData;
 import vn.vimass.service.table.NhomThietBiDiem.entity.ListDiem;
 import vn.vimass.service.table.object.ObjectInfoVid;
 import vn.vimass.service.table.object.ObjectXacThuc;
@@ -18,12 +19,13 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static vn.vimass.service.BackUp.BackUpFunCVer2.layThietBiVanTay;
 import static vn.vimass.service.BackUp.BackUpFunction.StatusResponse;
 import static vn.vimass.service.BackUp.FingerPrint.FPComandPacket.clearTemp;
-import static vn.vimass.service.BackUp.FingerPrint.FPComandPacket.identifyFree;
+import static vn.vimass.service.BackUp.FingerPrint.FPComandPacket.setDeiceID;
 import static vn.vimass.service.BackUp.FingerPrint.FPDataBase.*;
 import static vn.vimass.service.BackUp.FingerPrint.FPFunC.*;
-import static vn.vimass.service.BackUp.FingerPrint.Obj.CommandList.Identify_Free;
+import static vn.vimass.service.BackUp.FingerPrint.FPFunC.sendData;
 import static vn.vimass.service.CallService.CallService.PostREST;
 
 public class FPRoutes {
@@ -243,7 +245,7 @@ public class FPRoutes {
                         res.msgCode = 1;
                         res.result = Tool.setBase64("Gọi sai type rồi");
                     } else if (requestClient.type == 1) {
-                        Log.logServices("XacThuc : " +COM);
+                        Log.logServices("XacThuc : " + COM);
 
                         XTFPTuDienThoaiFunC(COM, objFP);
                         res.msgCode = 1;
@@ -342,7 +344,7 @@ public class FPRoutes {
                             if (currentData.indexOf("F4FF") > -1 && currentData.length() == 96) {
 
                                 String finalCurrentData = currentData;
-                                Log.logServices("fff"+finalCurrentData);
+                                Log.logServices("fff" + finalCurrentData);
                                 kq[0] = goiDichVuSaoKe(finalCurrentData, objFP);
                                 port.removeDataListener(); // Stop listening to data available events
                                 port.closePort(); // Close the port
@@ -429,5 +431,102 @@ public class FPRoutes {
 
         }
         return kq;
+    }
+
+    public static ResponseMessage1 themSuaXoaTBFP(int funcId, long time, String data) {
+        Log.logServices("130 Thanh cong" + data);
+        ResponseMessage1 res = new ResponseMessage1();
+        ArrayList<ObjFP> listFPLocal = new ArrayList<>();
+        ArrayList<ObjFP> listFPServer = new ArrayList<>();
+        ObjFP objFP = new ObjFP();
+        res.funcId = 130;
+        try {
+            listFPLocal = getThietBiFP();
+            ObjectSuaVanTay requestClient = new Gson().fromJson(data, ObjectSuaVanTay.class);
+            if (requestClient == null || data == null || data.equals("")) {
+                res = StatusResponse(3);
+            } else {
+                String idMoiNhat = taoIdFPMoiNhat(listFPLocal);
+                if (requestClient.listItem != null) {
+                    for (ObjFPSua thietBiVanTayRequest : requestClient.listItem) {
+                        if (thietBiVanTayRequest.type == 1) {
+                            thietBiVanTayRequest.id = "F" + new Date().getTime() + ServicesData.generateSessionKeyLowestCase(4).toUpperCase();
+                            themMoiThietBiVanTayDBTuClient(thietBiVanTayRequest);
+                            activeThietBiMoi(idMoiNhat);
+                            capNhatIdVanTayDB(idMoiNhat,thietBiVanTayRequest.id);
+                        } else if (thietBiVanTayRequest.type == 2) {
+                            if(capNhatThietBiVanTayDBKhongDongBo(thietBiVanTayRequest)){
+                                res.msgCode = 1;
+                                res.msgContent = "Success!";
+                            }else {
+                                res.msgCode = 2;
+                                res.msgContent = "Unsuccess!";
+                            }
+                        } else if (thietBiVanTayRequest.type==3) {
+                            for (ObjFP ar : listFPLocal) {
+                                if (ar.id.equals(thietBiVanTayRequest.id)) {
+                                    xoaFpID(ar.port);
+                                    NhayDen(ar.port);
+                                }
+                            }
+                            xoaThietBiFP(thietBiVanTayRequest.id);
+                        }
+                    }
+                }
+
+
+            }
+
+
+        } catch (Exception ex) {
+            Log.logServices("themSuaXoaTBFP Exception: " + ex.getMessage());
+            res = StatusResponse(3);
+        }
+
+        return res;
+    }
+    public static ResponseMessage1 layThietBiVanTay(int funcId, long time, String data) {
+        Log.logServices("131 Thanh cong" + data);
+        ResponseMessage1 res = new ResponseMessage1();
+        ArrayList<ObjFP> listFPLocal = new ArrayList<>();
+        res.funcId = 131;
+        try {
+            listFPLocal = getThietBiFP();
+            ObjectSuaVanTay requestClient = new Gson().fromJson(data, ObjectSuaVanTay.class);
+            if (requestClient == null || data == null || data.equals("")) {
+                res = StatusResponse(3);
+            } else {
+                res.msgCode = 1;
+                res.msgContent = "Success";
+                res.result = Tool.setBase64(listFPLocal.toString());
+            }
+
+
+        } catch (Exception ex) {
+            Log.logServices("layThietBiVanTay Exception: " + ex.getMessage());
+            res = StatusResponse(3);
+        }
+
+        return res;
+    }
+
+    private static void activeThietBiMoi(String idMoiNhat) {
+        try{
+            SerialPort[] ports = SerialPort.getCommPorts();
+            for (SerialPort port : ports) {
+                if (port.getDescriptivePortName() != null && port.getDescriptivePortName().contains("USB Serial Port")) {
+                    String t = sendData(SerialPort.getCommPort(port.getSystemPortName()), "55 AA 11 01 00 00 0200 00 00 00 00 00 00 00 00 00 00 00 00 00 001301", 100);
+                    if (t != null) {
+                        if(t.substring(16,20).equals("0000")||t.substring(16,20).equals("0100")){
+                            Log.logServices("activeThietBiMoi kq: "+sendData(SerialPort.getCommPort(port.getSystemPortName()), setDeiceID(idMoiNhat), 100));
+                            capNhatPortVanTayDB(port.getSystemPortName(), t.substring(16, 20));
+                        }
+                    }
+                }
+            }
+        }catch (Exception ex){
+            Log.logServices("activeThietBiMoi Exception: " + ex.getMessage());
+
+        }
     }
 }

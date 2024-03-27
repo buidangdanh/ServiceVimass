@@ -5,6 +5,8 @@ import com.google.gson.reflect.TypeToken;
 import vn.vimass.service.BackUp.FingerPrint.Obj.*;
 import vn.vimass.service.log.Log;
 import vn.vimass.service.table.NhomThietBiDiem.entity.ListDiem;
+import vn.vimass.service.table.NhomThietBiDiem.entity.ObjInfoQR;
+import vn.vimass.service.table.NhomThietBiDiem.entity.ObjQR;
 import vn.vimass.service.table.NhomThietBiDiem.entity.ObjVpass;
 import vn.vimass.service.table.object.ObjectFPRequest;
 import vn.vimass.service.table.object.ObjectInfoVid;
@@ -239,7 +241,110 @@ public class FPDataBase {
         }
         return isSuccess;
     }
-    public static boolean capNhatThietBiVanTayDB(ObjFP objFP) {
+    public static boolean themMoiThietBiVanTayDBTuClient(ObjFPSua objFP) {
+        Connection connect = null;
+        PreparedStatement pstmt = null;
+        boolean isSuccess = false;
+        try {
+            String strQuery = "INSERT INTO thietbivantay (id, mcID, idDonVi, nameF, totalF, currentF, timeTao, timeSua, type, listDiem, deviceV) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            connect = DbUtil.getConnect();
+            pstmt = connect.prepareStatement(strQuery);
+
+            pstmt.setString(1, objFP.id);
+            pstmt.setString(2, objFP.mcID);
+            pstmt.setString(3, objFP.idDonVi);
+            pstmt.setString(4, objFP.nameF);
+            pstmt.setInt(5, objFP.totalF);
+            pstmt.setInt(6, objFP.currentF);
+            pstmt.setLong(7, 0);
+            pstmt.setLong(8, 0);
+            pstmt.setInt(9, objFP.type); // Chuyển ArrayList<ListDiem> thành JSON string
+            pstmt.setString(10, tuIDDiemRaInfoDiem(objFP.listIDDiem.get(0)));
+            pstmt.setString(11, tuIDMayQLRaInfoMay(objFP.IdDeviceVManager));
+
+            // Thực thi câu lệnh
+            int affectedRows = pstmt.executeUpdate();
+
+            // Kiểm tra xem có dòng nào được thêm không
+            if (affectedRows > 0) {
+                isSuccess = true;
+            }
+
+            Log.logServices("themMoiThietBiVPass: Đã thêm mới thiết bị có ID = " + objFP.id);
+        } catch (Exception Ex) {
+            Log.logServices("themMoiThietBiVPass Exception: " + Ex.getMessage());
+        } finally {
+            // Đóng các tài nguyên
+            try {
+                if (pstmt != null) pstmt.close();
+                if (connect != null) connect.close();
+            } catch (SQLException ex) {
+                Log.logServices("themMoiThietBiVPass SQLException: " + ex.getMessage());
+            }
+        }
+        return isSuccess;
+    }
+
+    private static String tuIDMayQLRaInfoMay(String idDeviceVManager) {
+        ArrayList<ObjVpass> kqF = new ArrayList<>();
+        try{
+            String strQuery = "SELECT * FROM thietbivpass WHERE id = ?";
+            Connection connect = DbUtil.getConnect();
+            PreparedStatement pstmt = connect.prepareStatement(strQuery);
+            pstmt.setString(1, idDeviceVManager);
+
+            ResultSet resultSet = pstmt.executeQuery();
+            while (resultSet.next()) {
+                ObjVpass obj = new ObjVpass();
+                obj.id = resultSet.getString("id");
+                obj.mcID = resultSet.getString("mcID");
+                obj.desDevice = resultSet.getString("desDevice");
+                obj.storage = resultSet.getInt("storage");
+                obj.typeDevice = resultSet.getInt("typeDevice");
+                obj.portD = resultSet.getString("portD");
+                obj.function = resultSet.getInt("function");
+                obj.ip = resultSet.getString("ip");
+                obj.listDiem = new Gson().fromJson(resultSet.getString("listDiem"), new TypeToken<ArrayList<ListDiem>>() {
+                }.getType());
+                obj.deviceID = resultSet.getString("deviceID");
+                obj.stt = resultSet.getInt("stt");
+                kqF.add(obj);
+            }
+            Log.logServices("tuIDMayQLRaInfoMay!" + pstmt);
+        }catch (Exception ex){
+            Log.logServices("tuIDMayQLRaInfoMay Exception" +ex.getMessage());
+        }
+        return kqF.toString();
+    }
+
+    private static String tuIDDiemRaInfoDiem(String s) {
+
+        ArrayList<ObjQR> kqF = new ArrayList<>();
+        try{
+            String strQuery = "SELECT * FROM dbqr WHERE id = ?";
+            Connection connect = DbUtil.getConnect();
+            PreparedStatement pstmt = connect.prepareStatement(strQuery);
+            pstmt.setString(1, s);
+
+            ResultSet resultSet = pstmt.executeQuery();
+            while (resultSet.next()) {
+                ObjQR obj = new ObjQR();
+                obj.id = resultSet.getString("id");
+                obj.mcID = resultSet.getString("mcID");
+                obj.timeTao = resultSet.getLong("timeTao");
+                obj.catID = resultSet.getInt("catID");
+                obj.theDaNangLK = resultSet.getString("theDaNangLK");
+                obj.infor = new Gson().fromJson(resultSet.getString("infor"), ObjInfoQR.class) ;
+                kqF.add(obj);
+            }
+            Log.logServices("tuIDDiemRaInfoDiem!" + pstmt);
+        }catch (Exception ex){
+            Log.logServices("tuIDDiemRaInfoDiem Exception" +ex.getMessage());
+        }
+        return kqF.toString();
+    }
+
+    public static boolean capNhatThietBiVanTayDBTheoDongBo(ObjFP objFP) {
         Connection connect = null;
         PreparedStatement pstmt = null;
         boolean isSuccess = false;
@@ -283,6 +388,50 @@ public class FPDataBase {
         }
         return isSuccess;
     }
+    public static boolean capNhatThietBiVanTayDBKhongDongBo(ObjFPSua objFP) {
+        Connection connect = null;
+        PreparedStatement pstmt = null;
+        boolean isSuccess = false;
+        try {
+            String strQuery = "UPDATE thietbivantay SET mcID = ?, idDonVi = ?, nameF = ?, totalF = ?, currentF = ?, timeTao = ?, timeSua = ?, type = ?, listDiem = ?, deviceV = ? WHERE id = ?";
+            connect = DbUtil.getConnect();
+            pstmt = connect.prepareStatement(strQuery);
+
+            // Thiết lập giá trị cho các tham số từ đối tượng ObjVpass
+            pstmt.setString(1, objFP.mcID);
+            pstmt.setString(2, objFP.idDonVi);
+            pstmt.setString(3, objFP.nameF);
+            pstmt.setInt(4, objFP.totalF);
+            pstmt.setInt(5, objFP.currentF);
+            pstmt.setLong(6, 0);
+            pstmt.setLong(7, 0);
+            pstmt.setInt(8, objFP.type); // Chuyển ArrayList<ListDiem> thành JSON string
+            pstmt.setString(9, tuIDDiemRaInfoDiem(objFP.listIDDiem.get(0)));
+            pstmt.setString(10, tuIDMayQLRaInfoMay(objFP.IdDeviceVManager));
+            pstmt.setString(11, objFP.id);
+
+            // Thực thi câu lệnh
+            int affectedRows = pstmt.executeUpdate();
+
+            // Kiểm tra xem có dòng nào được cập nhật không
+            if (affectedRows > 0) {
+                isSuccess = true;
+            }
+
+            Log.logServices("capNhatThietBiVanTayDBKhongDongBo: Đã cập nhật thiết bị có ID = " + objFP.id);
+        } catch (Exception Ex) {
+            Log.logServices("capNhatThietBiVanTayDBKhongDongBo Exception: " + Ex.getMessage());
+        } finally {
+            // Đóng các tài nguyên
+            try {
+                if (pstmt != null) pstmt.close();
+                if (connect != null) connect.close();
+            } catch (SQLException ex) {
+                Log.logServices("capNhatThietBiVanTayDBKhongDongBo SQLException: " + ex.getMessage());
+            }
+        }
+        return isSuccess;
+    }
     public static boolean xoaThietBiFP(String id) {
         Connection connect = null;
         PreparedStatement pstmt = null;
@@ -312,6 +461,42 @@ public class FPDataBase {
                 if (connect != null) connect.close();
             } catch (SQLException ex) {
                 Log.logServices("xoaThietBiFP SQLException: " + ex.getMessage());
+            }
+        }
+        return isSuccess;
+    }
+    public static boolean capNhatIdVanTayDB(String idDonVi,String idVanTay) {
+        Connection connect = null;
+        PreparedStatement pstmt = null;
+        boolean isSuccess = false;
+        try {
+            String strQuery = "UPDATE thietbivantay SET idDonVi = ? WHERE id = ?";
+            connect = DbUtil.getConnect();
+            pstmt = connect.prepareStatement(strQuery);
+
+            // Thiết lập giá trị cho các tham số từ đối tượng ObjVpass
+            pstmt.setString(1, idDonVi);
+            pstmt.setString(2, idVanTay);
+
+
+            // Thực thi câu lệnh
+            int affectedRows = pstmt.executeUpdate();
+
+            // Kiểm tra xem có dòng nào được cập nhật không
+            if (affectedRows > 0) {
+                isSuccess = true;
+            }
+
+            Log.logServices("capNhatPortVanTayDB: Đã cập nhật thiết bị có idDonVi = " + idDonVi);
+        } catch (Exception Ex) {
+            Log.logServices("capNhatPortVanTayDB Exception: " + Ex.getMessage());
+        } finally {
+            // Đóng các tài nguyên
+            try {
+                if (pstmt != null) pstmt.close();
+                if (connect != null) connect.close();
+            } catch (SQLException ex) {
+                Log.logServices("capNhatPortVanTayDB SQLException: " + ex.getMessage());
             }
         }
         return isSuccess;

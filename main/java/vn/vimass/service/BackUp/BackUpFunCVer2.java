@@ -79,7 +79,7 @@ public class BackUpFunCVer2 {
         Thread thread = new Thread(task);
         thread.start();
     }
-    public static void layThietBiVPass(){
+    public static void layThietBiVPass(String mcID){
         try{
             ObjectgetThietBiVPass obj = new ObjectgetThietBiVPass();
             obj.user = "0966074236";
@@ -108,14 +108,14 @@ public class BackUpFunCVer2 {
 
         }
     }
-    public static ArrayList<ObjFP> layThietBiVanTay(){
+    public static ArrayList<ObjFP> layThietBiVanTay(String mcID){
         ArrayList<ObjFP> listFPSV = new ArrayList<>();
         try{
             ObjGetVanTay obj = new ObjGetVanTay();
             obj.user = "0966074236";
             obj.perNum = 0;
             obj.deviceID = 3;
-            obj.mcID= "DaiDongTTTHCS";
+            obj.mcID= mcID;
             obj.currentTime = new Date().getTime();
             obj.cks = ServivceCommon.bamMD5(obj.user + obj.deviceID + "ZgVCHxqMd$aNCm54X2YHD" + obj.currentTime + obj.mcID) ;
             String url = "http://210.245.8.7:12318/vimass/services/VUHF/dsVanTay";

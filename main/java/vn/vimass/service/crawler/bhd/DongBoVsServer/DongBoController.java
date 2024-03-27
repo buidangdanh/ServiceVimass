@@ -1,16 +1,11 @@
 package vn.vimass.service.crawler.bhd.DongBoVsServer;
 
-import com.fazecast.jSerialComm.SerialPort;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import vn.vimass.service.BackUp.FingerPrint.Obj.ObjFP;
-import vn.vimass.service.BackUp.FingerPrint.Obj.ObjFPSua;
-import vn.vimass.service.BackUp.FingerPrint.Obj.ObjGetVanTay;
-import vn.vimass.service.BackUp.FingerPrint.Obj.ObjectSuaVanTay;
 import vn.vimass.service.crawler.bhd.DongBoVsServer.entity.TypeThongBao;
 import vn.vimass.service.crawler.bhd.SendData.SendDataController;
 import vn.vimass.service.crawler.bhd.Tool;
-import vn.vimass.service.entity.ResponseMessage;
 import vn.vimass.service.entity.ResponseMessage1;
 import vn.vimass.service.log.Log;
 import vn.vimass.service.table.InforVid;
@@ -18,22 +13,17 @@ import vn.vimass.service.table.NhomThietBiDiem.*;
 import vn.vimass.service.table.NhomThietBiDiem.entity.*;
 import vn.vimass.service.table.SendData.sendData;
 import vn.vimass.service.table.object.ObjectInfoVid;
-import vn.vimass.service.utils.ServivceCommon;
 
 import java.lang.reflect.Type;
-import java.net.InetAddress;
-import java.sql.SQLOutput;
 import java.util.*;
 
 import static vn.vimass.service.BackUp.BackUpControllerDataBaseVer2.*;
 import static vn.vimass.service.BackUp.BackUpFunCVer2.*;
-import static vn.vimass.service.BackUp.BackUpFunction.May1;
 import static vn.vimass.service.BackUp.BackUpFunction.StatusResponse;
 import static vn.vimass.service.BackUp.FingerPrint.FPDataBase.*;
 import static vn.vimass.service.BackUp.FingerPrint.FPFunC.*;
 import static vn.vimass.service.BackUp.FingerPrint.FPFunC.capNhatIdFP;
 import static vn.vimass.service.BackUp.FingerPrint.FPRoutes.chuyenTrangThai;
-import static vn.vimass.service.CallService.CallService.PostREST;
 
 public class DongBoController {
     public static ResponseMessage1 thongBaoCapNhatNhom_ThietBiKhoa_QRvsThe(int funcId, long currentime, String data) {
@@ -113,30 +103,31 @@ public class DongBoController {
         return response;
     }
 
-    private static void funcFP(ArrayList<ObjFP> listFP) {
+    private static void funcFP(ArrayList<ObjFP> listFPClient) {
         HashMap<String, String> hashFPLocal = new HashMap<>();
         HashMap<String, String> hashFPLocal2 = new HashMap<>();
         ArrayList<ObjFP> listFPLocal = new ArrayList<>();
         ArrayList<ObjFP> listFPSV = new ArrayList<>();
         try {
-            //Lay ip internet
-            InetAddress inetAddress = InetAddress.getLocalHost();
-            String ip = inetAddress.getHostAddress();
-            //lay thiet bi van tay hien tai
-            listFPLocal = getThietBiFP();
-            for (ObjFP ar : listFPLocal) {
-                chuyenTrangThai(ar.id, false);
-                if (ar.port != null && !ar.port.equals("")) {
-                    hashFPLocal.put(ar.port, ar.idDonVi);
+            listFPLocal = getThietBiFP();    //lay thiet bi van tay hien tai
+            Log.logServices("funcFP trong may " + listFPLocal.toString());
+            if (listFPClient != null && listFPClient.size() > 0) {
+                capNhatPort(listFPLocal);
+                listFPSV = layThietBiVanTay(listFPClient.get(0).mcID);  //lay thiet bi van tay tu sv
+                if(listFPLocal==null||listFPLocal.size()==0){
+                    for (ObjFP objFPServer:listFPSV){
+                        themMoiThietBiVanTayDB(objFPServer);
+                    }
                 }
-            }
-            capNhatPort(listFPLocal);
-            //lay thiet bi van tay tu sv
-            listFPSV = layThietBiVanTay();
-            String idMoiNhat = taoIdFPMoiNhat(listFPSV);
-            Log.logServices("funcFP" + listFPLocal.toString());
-            if (listFP != null && listFP.size() > 0) {
-                for (ObjFP objFP : listFP) {
+                for (ObjFP ar : listFPLocal) {
+                    chuyenTrangThai(ar.id, false);
+                    if (ar.port != null && !ar.port.equals("")) {
+                        hashFPLocal.put(ar.port, ar.idDonVi);
+                    }
+                }
+
+                String idMoiNhat = taoIdFPMoiNhat(listFPSV);
+                for (ObjFP objFP : listFPClient) {
                     if (objFP.type == 1) {
                         themMoiThietBiVanTayDB(objFP);
                         if (true) {
@@ -152,7 +143,7 @@ public class DongBoController {
                             capNhatLenServer(objFP);
                         }
                     }else if(objFP.type==2){
-                        capNhatThietBiVanTayDB(objFP);
+                        capNhatThietBiVanTayDBTheoDongBo(objFP);
                     }else {
                         xoaThietBiFP(objFP.id);
                         for (ObjFP ar : listFPLocal) {
@@ -188,8 +179,8 @@ public class DongBoController {
             listVpassLocal = getThietBiVPass();
             Log.logServices("funcVPass" + listVpassLocal.toString());
 
-            if (listVpassLocal == null || listVpassLocal.size() < 1) {
-                layThietBiVPass();
+            if ((listVpassLocal == null || listVpassLocal.size() < 1)&&listVpassServer!=null&&listVpassServer.size()>0) {
+                layThietBiVPass(listVpassServer.get(0).mcID);
             } else {
                 if (listVpassServer != null && listVpassServer.size() > 0) {
                     for (ObjVpass objVpass : listVpassServer) {
